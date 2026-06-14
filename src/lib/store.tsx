@@ -129,7 +129,7 @@ function reducer(state: AppState, action: Action): AppState {
         avatarUrl: null,
         recentFeedback: [],
       }
-      const schedule = buildTodaySchedule(action.subjects, user.currentCapacity)
+      const schedule = buildTodaySchedule(action.subjects, user.currentCapacity, state.sessions)
       return {
         ...state,
         user,
