@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock, BookOpen, BarChart2, TrendingUp } from 'lucide-react'
+import { BookOpen, TrendingUp, Sparkles, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import { formatMinutes, getHouseState, HOUSE_STAGES } from '@/lib/algorithm'
@@ -103,90 +103,61 @@ function HouseTimeline({ level, totalBricks }: { level: number; totalBricks: num
 
 export default function ProgressScreen() {
   const { state } = useStore()
-  const { user, subjects, sessions } = state
+  const { user, subjects } = state
 
   if (!user) return null
 
   const house = getHouseState(user.totalSessions)
 
-  // Last 7 days study data
-  const last7 = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (6 - i))
-    const dateStr = d.toISOString().split('T')[0]
-    const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' })
-    const minutes = sessions
-      .filter((s) => s.date === dateStr)
-      .reduce((acc, s) => acc + s.actualMinutes, 0)
-    return { dateStr, dayLabel, minutes }
-  })
-
-  const maxMinutes = Math.max(...last7.map((d) => d.minutes), 1)
-
   // Subject-level progress
   const subjectProgress = subjects.map((s) => {
     const total = s.lectures.length
     const done = s.lectures.filter((l) => l.status === 'completed').length
-    const totalMinutes = s.lectures.reduce((acc, l) => acc + l.durationMinutes, 0)
-    const watchedMinutes = s.lectures.reduce((acc, l) => acc + l.watchedMinutes, 0)
-    return { subject: s, total, done, totalMinutes, watchedMinutes }
+    return { subject: s, total, done }
   })
 
   const totalLecturesDone = subjectProgress.reduce((acc, s) => acc + s.done, 0)
   const totalLectures = subjectProgress.reduce((acc, s) => acc + s.total, 0)
+  const remainingLectures = Math.max(0, totalLectures - totalLecturesDone)
 
   return (
     <div className="min-h-screen bg-background pb-28">
       {/* Header */}
-      <div className="px-5 pt-14 pb-4">
-        <h1 className="font-bold text-4xl text-foreground tracking-tight">Progress</h1>
-        <p className="text-muted-foreground text-sm mt-1">Your home, brick by brick</p>
+      <div className="px-5 pt-14 pb-4 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-bold text-4xl text-foreground tracking-tight">Progress</h1>
+          <p className="text-muted-foreground text-sm mt-1">Your home, brick by brick</p>
+        </div>
+        {user.avatarUrl ? (
+          <img
+            src={user.avatarUrl}
+            alt={user.name}
+            className="w-10 h-10 rounded-full object-cover border border-border shrink-0"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
+            <span className="text-primary-foreground font-semibold text-sm">
+              {user.name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="px-5 space-y-5">
-        {/* Stats row */}
+        {/* Rhythm row */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Total studied */}
           <div className="bg-card rounded-3xl border border-border p-4 flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-xl bg-[#E2F5EC] flex items-center justify-center">
-              <Clock size={18} className="text-[#2B7A52]" />
+            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+              <Sparkles size={18} className="text-muted-foreground" />
             </div>
             <div>
               <p className="font-bold text-3xl text-foreground tracking-tight">
-                {formatMinutes(user.totalMinutes)}
+                {formatMinutes(user.comfortableMinutes)}
               </p>
-              <p className="text-xs text-muted-foreground font-medium">Total Studied</p>
+              <p className="text-xs text-muted-foreground font-medium">Started Rhythm</p>
             </div>
           </div>
 
-          {/* Sessions */}
-          <div className="bg-card rounded-3xl border border-border p-4 flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-xl bg-[#EEE8FF] flex items-center justify-center">
-              <TrendingUp size={18} className="text-[#7C5CC4]" />
-            </div>
-            <div>
-              <p className="font-bold text-3xl text-foreground tracking-tight">
-                {user.totalSessions}
-              </p>
-              <p className="text-xs text-muted-foreground font-medium">Sessions Done</p>
-            </div>
-          </div>
-
-          {/* Lectures done */}
-          <div className="bg-card rounded-3xl border border-border p-4 flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-xl bg-[#E0EEFF] flex items-center justify-center">
-              <BookOpen size={18} className="text-[#1A72C4]" />
-            </div>
-            <div>
-              <p className="font-bold text-3xl text-foreground tracking-tight">
-                {totalLecturesDone}
-                <span className="text-base font-medium text-muted-foreground">/{totalLectures}</span>
-              </p>
-              <p className="text-xs text-muted-foreground font-medium">Lectures Done</p>
-            </div>
-          </div>
-
-          {/* Current Rhythm */}
           <div className="bg-primary rounded-3xl p-4 flex flex-col gap-2">
             <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
               <TrendingUp size={18} className="text-primary-foreground" />
@@ -196,48 +167,33 @@ export default function ProgressScreen() {
                 {formatMinutes(user.currentCapacity)}
               </p>
               <p className="text-xs text-primary-foreground/70 font-medium">
-                Current Rhythm · started at {formatMinutes(user.comfortableMinutes)}
+                Today&apos;s Rhythm
               </p>
             </div>
           </div>
 
-        </div>
-
-        {/* Weekly chart */}
-        <div className="bg-card rounded-3xl border border-border p-5">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-base text-foreground tracking-tight">This Week</h3>
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <BarChart2 size={14} />
-              <span className="text-xs font-medium">minutes / day</span>
+          <div className="bg-card rounded-3xl border border-border p-4 flex flex-col gap-2">
+            <div className="w-9 h-9 rounded-xl bg-[#E0EEFF] flex items-center justify-center">
+              <BookOpen size={18} className="text-[#1A72C4]" />
+            </div>
+            <div>
+              <p className="font-bold text-3xl text-foreground tracking-tight">
+                {totalLecturesDone}
+              </p>
+              <p className="text-xs text-muted-foreground font-medium">Lectures Completed</p>
             </div>
           </div>
-          <div className="flex items-end gap-2 h-24">
-            {last7.map((day) => {
-              const height = day.minutes > 0 ? Math.max((day.minutes / maxMinutes) * 100, 8) : 0
-              const isToday = day.dateStr === new Date().toISOString().split('T')[0]
-              return (
-                <div key={day.dateStr} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="flex-1 flex items-end w-full">
-                    <div
-                      className={cn(
-                        'w-full rounded-t-lg transition-all duration-500',
-                        isToday ? 'bg-primary' : day.minutes > 0 ? 'bg-primary/40' : 'bg-muted'
-                      )}
-                      style={{ height: height > 0 ? `${height}%` : '4px' }}
-                    />
-                  </div>
-                  <span
-                    className={cn(
-                      'text-[10px] font-medium',
-                      isToday ? 'text-primary' : 'text-muted-foreground'
-                    )}
-                  >
-                    {day.dayLabel}
-                  </span>
-                </div>
-              )
-            })}
+
+          <div className="bg-card rounded-3xl border border-border p-4 flex flex-col gap-2">
+            <div className="w-9 h-9 rounded-xl bg-[#FFF3E0] flex items-center justify-center">
+              <Layers size={18} className="text-[#C47A1A]" />
+            </div>
+            <div>
+              <p className="font-bold text-3xl text-foreground tracking-tight">
+                {remainingLectures}
+              </p>
+              <p className="text-xs text-muted-foreground font-medium">Remaining Lectures</p>
+            </div>
           </div>
         </div>
 
@@ -265,18 +221,15 @@ export default function ProgressScreen() {
           <HouseTimeline level={house.level} totalBricks={house.bricks} />
         </div>
 
-
-        {/* Subject breakdown */}
+        {/* Subject breakdown — simple completion only */}
         {subjectProgress.length > 0 && (
           <div>
             <h3 className="font-semibold text-base text-foreground tracking-tight mb-3">
               By Subject
             </h3>
             <div className="flex flex-col gap-3">
-              {subjectProgress.map(({ subject, total, done, totalMinutes, watchedMinutes }) => {
+              {subjectProgress.map(({ subject, total, done }) => {
                 const pct = total > 0 ? Math.round((done / total) * 100) : 0
-                const watchPct =
-                  totalMinutes > 0 ? Math.round((watchedMinutes / totalMinutes) * 100) : 0
                 return (
                   <div
                     key={subject.id}
@@ -297,16 +250,8 @@ export default function ProgressScreen() {
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
                         className="h-full bg-success rounded-full transition-all duration-500"
-                        style={{ width: `${watchPct}%` }}
+                        style={{ width: `${pct}%` }}
                       />
-                    </div>
-                    <div className="flex justify-between mt-1.5">
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatMinutes(watchedMinutes)} watched
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatMinutes(totalMinutes)} total
-                      </span>
                     </div>
                   </div>
                 )
