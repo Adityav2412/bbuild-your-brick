@@ -603,8 +603,87 @@ function AppearanceCard() {
   )
 }
 
-// ─── Reset confirm ─────────────────────────────────────────────────────────
+// ─── Backup / Restore ──────────────────────────────────────────────────────
 
+function BackupCard() {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [status, setStatus] = useState<{ kind: 'ok' | 'err'; message: string } | null>(null)
+
+  const onExport = () => {
+    const json = exportBackup()
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `brick-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setStatus({ kind: 'ok', message: 'Backup downloaded.' })
+  }
+
+  const onImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result
+      if (typeof text !== 'string') return
+      const result = importBackup(text)
+      if (result.ok) {
+        setStatus({ kind: 'ok', message: 'Backup restored. Reloading…' })
+        setTimeout(() => window.location.reload(), 600)
+      } else {
+        setStatus({ kind: 'err', message: result.error })
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  return (
+    <div className="bg-card rounded-3xl border border-border px-4 py-4">
+      <p className="text-sm font-semibold text-foreground mb-1">Backup & Restore</p>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+        Brick lives on this device. Export a copy of your progress regularly so a cleared browser never erases your work.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={onExport}
+          className="flex items-center justify-center gap-2 h-10 rounded-xl bg-foreground text-background text-sm font-medium active:opacity-80 transition-opacity"
+        >
+          <Download size={14} />
+          Export
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="flex items-center justify-center gap-2 h-10 rounded-xl bg-muted text-foreground text-sm font-medium active:opacity-80 transition-opacity"
+        >
+          <Upload size={14} />
+          Restore
+        </button>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json"
+        onChange={onImport}
+        className="hidden"
+      />
+      {status && (
+        <p
+          className={cn(
+            'text-xs mt-2',
+            status.kind === 'ok' ? 'text-success' : 'text-destructive',
+          )}
+        >
+          {status.message}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ─── Reset confirm ─────────────────────────────────────────────────────────
 
 function ResetButton() {
   const { dispatch } = useStore()
