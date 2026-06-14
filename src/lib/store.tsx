@@ -415,7 +415,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const toStore: AppState = { ...state, activeSession: null }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore))
     } catch (e) {
-      console.error('[StudyCoach] Persist error:', e)
+      console.error('[Brick] Persist error:', e)
     }
   }, [state, hydrated])
 
