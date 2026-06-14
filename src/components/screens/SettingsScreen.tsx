@@ -580,6 +580,11 @@ export default function SettingsScreen() {
           <SubjectManager />
         </section>
 
+        {/* Appearance */}
+        <section>
+          <AppearanceCard />
+        </section>
+
         {/* Notifications placeholder */}
         <section>
           <div className="flex items-center gap-2 mb-3">
