@@ -4,10 +4,12 @@ import type {
   User,
   SessionFeedback,
   StudySessionRecord,
+  EnergyLevel,
+  LectureDifficulty,
 } from './types'
 
-// ─── Psychology Capacity Engine ──────────────────────────────────────────────
-// Brick is a mentor, not a tracker. Capacity moves gently, never aggressively.
+// ─── Psychology Rhythm Engine ────────────────────────────────────────────────
+// Brick is a mentor, not a tracker. The rhythm moves gently, never aggressively.
 //
 // Rules:
 //   3 Easy sessions in the last window         → +5 min
@@ -16,8 +18,10 @@ import type {
 //   2 Difficult sessions in a row              → pause progression (hold + cooldown flag)
 //   Could not finish                           → −3 min (gentle reduction)
 //
-// Hard cap: never grow more than 10% above the user's capacity from 7 days ago.
-// Floor: never drop below 50% of the user's reported comfortable starting capacity.
+// Hard caps:
+//   - Never grow more than 10% above the rhythm from 7 days ago.
+//   - Never exceed the user's chosen maximum daily duration.
+// Floor: never drop below 50% of the user's reported comfortable starting rhythm.
 
 export interface CapacityResult {
   newCapacity: number
@@ -34,6 +38,7 @@ export function applyFeedbackToCapacity(
   recentFeedback: SessionFeedback[],
   newFeedback: SessionFeedback,
   capacity7DaysAgo: number | null = null,
+  maxRhythm: number = 240,
 ): CapacityResult {
   const updated = [...recentFeedback, newFeedback].slice(-8)
   const last2 = updated.slice(-2)
@@ -41,15 +46,15 @@ export function applyFeedbackToCapacity(
 
   const floor = Math.max(10, Math.round(comfortableMinutes * 0.5))
   const baseFor10pct = capacity7DaysAgo ?? comfortableMinutes
-  const weeklyCeiling = Math.round(baseFor10pct * 1.1)
+  // The hard ceiling is the smaller of (10%/week growth cap, user's chosen max)
+  const weeklyCeiling = Math.min(maxRhythm, Math.round(baseFor10pct * 1.1))
+  const absoluteCeiling = maxRhythm
 
   let newCapacity = currentCapacity
-  let paused = false
   let note: string | null = null
 
   // 2 difficult in a row → pause progression (hold and cool down)
   if (last2.length === 2 && last2.every((f) => f === 'difficult')) {
-    paused = true
     note = "Holding steady. Let's give today the same shape as yesterday."
     return { newCapacity: currentCapacity, updatedFeedback: updated, progressionPaused: true, note }
   }
@@ -69,29 +74,61 @@ export function applyFeedbackToCapacity(
     newCapacity = target
   }
 
-  // Enforce weekly 10% cap defensively
+  // Enforce both ceilings defensively
   if (newCapacity > weeklyCeiling) newCapacity = weeklyCeiling
+  if (newCapacity > absoluteCeiling) newCapacity = absoluteCeiling
 
   return { newCapacity, updatedFeedback: updated, progressionPaused: false, note }
 }
 
-// ─── Smart Subject Rotation ──────────────────────────────────────────────────
+// ─── Energy adjustment (today-only) ──────────────────────────────────────────
+// Daily check-in scales today's assigned minutes WITHOUT touching long-term rhythm.
+export const ENERGY_MULTIPLIER: Record<EnergyLevel, number> = {
+  good: 1.0,
+  okay: 0.85,
+  low: 0.7,
+}
+
+export function adjustCapacityForEnergy(capacity: number, energy: EnergyLevel | null | undefined): number {
+  if (!energy) return capacity
+  const m = ENERGY_MULTIPLIER[energy]
+  return Math.max(5, Math.round(capacity * m))
+}
+
+// ─── Lecture difficulty ──────────────────────────────────────────────────────
+// Heavy lectures consume more of today's rhythm; easy lectures consume slightly less.
+export const DIFFICULTY_WEIGHT: Record<LectureDifficulty, number> = {
+  easy: 0.8,
+  moderate: 1.0,
+  heavy: 1.3,
+}
+
+export function difficultyWeight(d: LectureDifficulty | undefined): number {
+  return d ? DIFFICULTY_WEIGHT[d] : 1.0
+}
+
+// ─── Weighted Subject Rotation ───────────────────────────────────────────────
 // Brick decides what to study so the student doesn't have to.
-// We rank subjects by:
-//   1. Recency  — subjects not studied recently rise to the top
-//   2. Balance  — subjects with more remaining lectures vs. studied get priority
-//   3. Tie-break by original order
-// Then we fill today's capacity by walking the ranked list.
+// Each subject gets a score from three signals:
+//   • Workload  — more pending lectures => higher score (logarithmic, so 200 vs 20 doesn't drown out 20)
+//   • Recency   — longer since last touched => higher score
+//   • Neglect   — fewer sessions in the last 14 days => higher score
+// Subjects are then visited highest-score-first when packing today's rhythm.
+
+interface RankedSubject {
+  subject: Subject
+  score: number
+}
 
 function rankSubjects(subjects: Subject[], sessions: StudySessionRecord[]): Subject[] {
-  const today = Date.now()
+  const now = Date.now()
+  const DAY = 86400000
   const lastTouched = new Map<string, number>()
   const recentCount = new Map<string, number>()
 
-  // Look at last 14 days of sessions
   for (const s of sessions) {
     const t = new Date(s.date).getTime()
-    if (today - t > 14 * 86400000) continue
+    if (now - t > 14 * DAY) continue
     lastTouched.set(s.subjectId, Math.max(lastTouched.get(s.subjectId) ?? 0, t))
     recentCount.set(s.subjectId, (recentCount.get(s.subjectId) ?? 0) + 1)
   }
@@ -100,27 +137,33 @@ function rankSubjects(subjects: Subject[], sessions: StudySessionRecord[]): Subj
     s.lectures.some((l) => l.status === 'pending'),
   )
 
-  return [...withPending].sort((a, b) => {
-    // Subjects never touched come first
-    const aTouched = lastTouched.get(a.id) ?? 0
-    const bTouched = lastTouched.get(b.id) ?? 0
-    if (aTouched !== bTouched) return aTouched - bTouched // older/zero first
+  const ranked: RankedSubject[] = withPending.map((subject) => {
+    const pending = subject.lectures.filter((l) => l.status === 'pending').length
+    const last = lastTouched.get(subject.id)
+    const daysSince = last ? Math.min(30, (now - last) / DAY) : 30
+    const recent = recentCount.get(subject.id) ?? 0
 
-    // Then those with fewer recent sessions
-    const aRecent = recentCount.get(a.id) ?? 0
-    const bRecent = recentCount.get(b.id) ?? 0
-    if (aRecent !== bRecent) return aRecent - bRecent
+    // Workload: logarithmic so 200 lectures ≈ 5.3, 50 ≈ 3.9, 20 ≈ 3.0, 5 ≈ 1.8
+    const workload = Math.log2(1 + pending) * 2
+    // Recency: 0..6 (more days since = higher score, soft cap)
+    const recency = Math.min(6, daysSince * 0.6)
+    // Neglect: penalise subjects that already got plenty of attention this fortnight
+    const neglect = Math.max(0, 4 - recent)
 
-    // Then those with more pending work remaining
-    const aPending = a.lectures.filter((l) => l.status === 'pending').length
-    const bPending = b.lectures.filter((l) => l.status === 'pending').length
-    return bPending - aPending
+    return { subject, score: workload + recency + neglect }
   })
+
+  ranked.sort((a, b) => b.score - a.score)
+  return ranked.map((r) => r.subject)
 }
 
 // ─── Schedule Builder ─────────────────────────────────────────────────────────
 
-/** Builds today's assignment by picking the next pending lecture across subjects, smartly rotated. */
+/**
+ * Builds today's assignment by walking the weighted-ranked subject list and
+ * picking the next pending lecture from each, until today's rhythm is filled.
+ * `capacityMinutes` should already be energy-adjusted by the caller.
+ */
 export function buildTodaySchedule(
   subjects: Subject[],
   capacityMinutes: number,
@@ -140,8 +183,12 @@ export function buildTodaySchedule(
 
     const alreadyWatched = pendingLecture.watchedMinutes
     const lectureRemaining = pendingLecture.durationMinutes - alreadyWatched
-    const watchTarget = Math.min(lectureRemaining, remaining)
+    if (lectureRemaining <= 0) continue
 
+    // Scale how much of today's rhythm this lecture consumes by difficulty.
+    const weight = difficultyWeight(pendingLecture.difficulty)
+    // Effective minutes the user actually studies, capped by remaining rhythm/weight.
+    const watchTarget = Math.min(lectureRemaining, Math.floor(remaining / weight))
     if (watchTarget <= 0) continue
 
     schedule.push({
@@ -152,80 +199,156 @@ export function buildTodaySchedule(
       status: isFirst ? 'in-progress' : 'upcoming',
     })
 
-    remaining -= watchTarget
+    remaining -= Math.ceil(watchTarget * weight)
     isFirst = false
   }
 
   return schedule
 }
 
-// ─── Mentor Messages ──────────────────────────────────────────────────────────
+// ─── Smart Mentor ─────────────────────────────────────────────────────────────
+// Messages adapt to what's actually happening — recovery, low energy, growth,
+// consistency, paused progression — and only fall back to general lines.
 
-const MENTOR_MESSAGES = [
-  'Focus on today\u2019s brick.',
+export interface MentorContext {
+  totalSessions: number
+  recentFeedback: SessionFeedback[]
+  daysSinceLastStudy: number
+  recoveryMode?: boolean
+  progressionPaused?: boolean
+  energy?: EnergyLevel | null
+  /** True when the most recent feedback grew the rhythm */
+  rhythmGrew?: boolean
+}
+
+const GENERAL_MESSAGES = [
+  "Focus on today\u2019s brick.",
   'Small steps build strong foundations.',
-  'Today\u2019s effort matters.',
+  "Today\u2019s effort matters.",
   'One session at a time.',
   'Consistency grows quietly.',
-  'You don\u2019t need to plan. Just begin.',
-  'Show up. Place the brick. That\u2019s the whole job.',
+  "You don\u2019t need to plan. Just begin.",
+  "Show up. Place the brick. That\u2019s the whole job.",
   'A home is built one brick at a time.',
   'Progress is patient. So are you.',
   'The work you do today settles into your foundation.',
 ]
 
-export function getMentorMessage(totalSessions: number): string {
-  return MENTOR_MESSAGES[totalSessions % MENTOR_MESSAGES.length]
+export function getMentorMessage(
+  contextOrTotal: MentorContext | number,
+): string {
+  // Back-compat: callers may still pass just a session count.
+  const ctx: MentorContext =
+    typeof contextOrTotal === 'number'
+      ? { totalSessions: contextOrTotal, recentFeedback: [], daysSinceLastStudy: 0 }
+      : contextOrTotal
+
+  // 1. Long absence / recovery — strongest priority
+  if (ctx.recoveryMode || ctx.daysSinceLastStudy >= 15) {
+    return "Welcome back. We\u2019ll rebuild gradually, one quiet brick at a time."
+  }
+  if (ctx.daysSinceLastStudy >= 8) {
+    return "Welcome back. Today\u2019s session is lighter on purpose."
+  }
+  if (ctx.daysSinceLastStudy >= 4) {
+    return "Glad you\u2019re here. We\u2019ll ease back into your rhythm."
+  }
+
+  // 2. Energy-aware
+  if (ctx.energy === 'low') {
+    return "Let\u2019s keep today\u2019s session simple. Showing up is enough."
+  }
+  if (ctx.energy === 'okay') {
+    return 'A calm, steady session today. Nothing more.'
+  }
+
+  // 3. Engine state
+  if (ctx.progressionPaused) {
+    return 'Holding steady today. Strength is also built in pauses.'
+  }
+  const last3 = ctx.recentFeedback.slice(-3)
+  if (last3.length === 3 && last3.every((f) => f === 'difficult')) {
+    return "Let\u2019s keep today\u2019s session simple."
+  }
+  if (ctx.rhythmGrew) {
+    return 'Your rhythm is becoming more natural. Quietly, it grew.'
+  }
+  if (last3.length === 3 && last3.every((f) => f === 'easy')) {
+    return 'You\u2019re moving well. Keep the same calm pace.'
+  }
+  if (ctx.totalSessions >= 7 && ctx.daysSinceLastStudy <= 1) {
+    return 'Steady. Consistent. This is how homes get built.'
+  }
+
+  // 4. General rotation
+  return GENERAL_MESSAGES[ctx.totalSessions % GENERAL_MESSAGES.length]
 }
 
 // ─── House of Knowledge ───────────────────────────────────────────────────────
-// Every completed session places one brick.
-// The user slowly builds a beautiful home.
+// Every completed session places one visible brick. The house grows over time.
+// After "Completed Home", expansions continue — the journey never ends abruptly.
 //
-// Stages:
-//   0 Foundation → 1 Walls → 2 Windows → 3 Door → 4 Roof → 5 Garden → 6 Completed Home
-// Stage thresholds (in bricks/sessions): 0, 4, 12, 22, 34, 48, 64
+// Visible bricks come straight from completed-session count.
+// The stage progression bar can optionally use a weighted effort score
+// (longer sessions nudge progress within a stage slightly faster).
 
 export interface HouseStage {
-  index: 0 | 1 | 2 | 3 | 4 | 5 | 6
-  key: 'foundation' | 'walls' | 'windows' | 'door' | 'roof' | 'garden' | 'complete'
+  index: number
+  key:
+    | 'foundation'
+    | 'walls'
+    | 'windows'
+    | 'door'
+    | 'roof'
+    | 'garden'
+    | 'complete'
+    | 'study-room'
+    | 'library'
+    | 'reading-corner'
+    | 'garden-expansion'
+    | 'workshop'
   label: string
   description: string
   bricksRequired: number
+  /** Bonus / expansion stages render with a softer tone */
+  isExpansion?: boolean
 }
 
 export const HOUSE_STAGES: HouseStage[] = [
-  { index: 0, key: 'foundation', label: 'Foundation',     description: 'The ground is set. Every home begins here.',   bricksRequired: 0 },
-  { index: 1, key: 'walls',      label: 'Walls',          description: 'The walls rise, brick by brick.',                bricksRequired: 11 },
-  { index: 2, key: 'windows',    label: 'Windows & Door', description: 'Light enters. A way in begins to form.',         bricksRequired: 31 },
-  { index: 3, key: 'door',       label: 'Door',           description: 'A threshold. The home becomes yours.',           bricksRequired: 41 },
-  { index: 4, key: 'roof',       label: 'Roof',           description: 'Shelter. Quiet protection overhead.',            bricksRequired: 51 },
-  { index: 5, key: 'garden',     label: 'Garden',         description: 'Life grows around the home you built.',          bricksRequired: 71 },
-  { index: 6, key: 'complete',   label: 'Completed Home', description: 'Built slowly. Built well. Built by you.',        bricksRequired: 91 },
+  { index: 0, key: 'foundation',       label: 'Foundation',       description: 'The ground is set. Every home begins here.',     bricksRequired: 0 },
+  { index: 1, key: 'walls',            label: 'Walls',            description: 'The walls rise, brick by brick.',                bricksRequired: 11 },
+  { index: 2, key: 'windows',          label: 'Windows & Door',   description: 'Light enters. A way in begins to form.',         bricksRequired: 31 },
+  { index: 3, key: 'door',             label: 'Door',             description: 'A threshold. The home becomes yours.',           bricksRequired: 41 },
+  { index: 4, key: 'roof',             label: 'Roof',             description: 'Shelter. Quiet protection overhead.',            bricksRequired: 51 },
+  { index: 5, key: 'garden',           label: 'Garden',           description: 'Life grows around the home you built.',          bricksRequired: 71 },
+  { index: 6, key: 'complete',         label: 'Completed Home',   description: 'Built slowly. Built well. Built by you.',        bricksRequired: 91 },
+  // Long-term expansions — the journey continues for years.
+  { index: 7, key: 'study-room',       label: 'Study Room',       description: 'A quiet room for deeper focus.',                 bricksRequired: 130, isExpansion: true },
+  { index: 8, key: 'library',          label: 'Library',          description: 'Walls of books. A mind that lasts.',             bricksRequired: 180, isExpansion: true },
+  { index: 9, key: 'reading-corner',   label: 'Reading Corner',   description: 'A soft chair by the window.',                    bricksRequired: 240, isExpansion: true },
+  { index: 10, key: 'garden-expansion', label: 'Garden Expansion', description: 'The garden widens, season after season.',       bricksRequired: 320, isExpansion: true },
+  { index: 11, key: 'workshop',         label: 'Workshop',         description: 'A place to build, beyond the home itself.',      bricksRequired: 420, isExpansion: true },
 ]
 
 export interface HouseState {
-  /** Total bricks placed (== total completed sessions) */
   bricks: number
-  /** Current stage 0..6 */
   level: number
-  /** Current stage object */
   stage: HouseStage
-  /** Next stage (null if at the end) */
   nextStage: HouseStage | null
-  /** Bricks needed to reach the next visible upgrade */
   bricksToNext: number
-  /** Fraction within current stage (0..1) */
   stageFraction: number
-  /** Overall fraction across all stages (0..1) */
   fraction: number
-  /** Short note about what was just placed (for celebration moments) */
   recentRestoration: string | null
-  /** Human description of the current stage */
   description: string
 }
 
-export function getHouseState(totalSessions: number): HouseState {
+/**
+ * @param totalSessions  Visible brick count (one per completed session).
+ * @param effortScore    Optional internal weighted score for finer-grained
+ *                       progression within a stage. Pass `undefined` to fall
+ *                       back to brick count only.
+ */
+export function getHouseState(totalSessions: number, effortScore?: number): HouseState {
   const bricks = Math.max(0, totalSessions)
   let level = 0
   for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
@@ -237,10 +360,18 @@ export function getHouseState(totalSessions: number): HouseState {
   const stage = HOUSE_STAGES[level]
   const nextStage = HOUSE_STAGES[level + 1] ?? null
   const bricksToNext = nextStage ? Math.max(0, nextStage.bricksRequired - bricks) : 0
+
+  // Stage fraction: use the effort score if provided, otherwise fall back to
+  // bricks. Either way it stays bounded by the stage span so the visible
+  // brick number is still the source of truth for stage transitions.
   const stageSpan = nextStage ? nextStage.bricksRequired - stage.bricksRequired : 1
-  const within = nextStage ? bricks - stage.bricksRequired : stageSpan
-  const stageFraction = stageSpan > 0 ? Math.min(1, within / stageSpan) : 1
-  const totalBricksForFull = HOUSE_STAGES[HOUSE_STAGES.length - 1].bricksRequired
+  let withinFromBricks = nextStage ? bricks - stage.bricksRequired : stageSpan
+  if (effortScore !== undefined && nextStage) {
+    const baseEffort = HOUSE_STAGES[level].bricksRequired
+    withinFromBricks = Math.min(stageSpan, Math.max(withinFromBricks, effortScore - baseEffort))
+  }
+  const stageFraction = stageSpan > 0 ? Math.min(1, withinFromBricks / stageSpan) : 1
+  const totalBricksForFull = HOUSE_STAGES[6].bricksRequired // base house only
   const fraction = Math.min(1, bricks / totalBricksForFull)
 
   return {
@@ -254,6 +385,16 @@ export function getHouseState(totalSessions: number): HouseState {
     recentRestoration: bricks > 0 ? `+1 brick placed` : null,
     description: stage.description,
   }
+}
+
+/** Effort score: each session contributes 1 + a small bonus per 30 minutes. */
+export function computeEffortScore(sessions: StudySessionRecord[]): number {
+  let score = 0
+  for (const s of sessions) {
+    if (!s.completed) continue
+    score += 1 + Math.min(0.5, s.actualMinutes / 60) // capped bonus of 0.5 per session
+  }
+  return score
 }
 
 // Back-compat alias for screens that still import the old name.
@@ -332,7 +473,7 @@ export function isLongGap(lastStudyDate: string | null): boolean {
   const last = new Date(lastStudyDate)
   const today = new Date()
   const daysDiff = Math.floor((today.getTime() - last.getTime()) / (1000 * 60 * 60 * 24))
-  return daysDiff >= 3
+  return daysDiff >= 4
 }
 
 /** Days away since last study (0 if same day). */
@@ -343,17 +484,64 @@ export function daysAway(lastStudyDate: string | null): number {
   return Math.max(0, Math.floor((today.getTime() - last.getTime()) / 86400000))
 }
 
-/** After several days away, Brick eases the workload — never penalises. */
+// ─── Missed-day Recovery ─────────────────────────────────────────────────────
+// 1-3 days   → no change
+// 4-7 days   → reduce rhythm by 10%
+// 8-14 days  → reduce rhythm by 20%, activate recovery mode
+// 15+ days   → start recovery onboarding (the caller routes the user there)
+export interface RecoveryResult {
+  newCapacity: number
+  recoveryMode: boolean
+  needsRecoveryOnboarding: boolean
+  mentorNote: string | null
+}
+
+export function applyMissedDayRecovery(
+  currentCapacity: number,
+  comfortableMinutes: number,
+  daysAwayCount: number,
+): RecoveryResult {
+  const floor = Math.max(10, Math.round(comfortableMinutes * 0.5))
+
+  if (daysAwayCount >= 15) {
+    return {
+      newCapacity: Math.max(floor, comfortableMinutes),
+      recoveryMode: true,
+      needsRecoveryOnboarding: true,
+      mentorNote: "Welcome back. We\u2019ll rebuild gradually.",
+    }
+  }
+  if (daysAwayCount >= 8) {
+    return {
+      newCapacity: Math.max(floor, Math.round(currentCapacity * 0.8)),
+      recoveryMode: true,
+      needsRecoveryOnboarding: false,
+      mentorNote: "Welcome back. Today\u2019s session is lighter on purpose.",
+    }
+  }
+  if (daysAwayCount >= 4) {
+    return {
+      newCapacity: Math.max(floor, Math.round(currentCapacity * 0.9)),
+      recoveryMode: false,
+      needsRecoveryOnboarding: false,
+      mentorNote: "Glad you\u2019re here. We\u2019ll ease back into your rhythm.",
+    }
+  }
+  return {
+    newCapacity: currentCapacity,
+    recoveryMode: false,
+    needsRecoveryOnboarding: false,
+    mentorNote: null,
+  }
+}
+
+/** Back-compat shim — older callers still import easedCapacityAfterGap. */
 export function easedCapacityAfterGap(
   currentCapacity: number,
   comfortableMinutes: number,
   daysAwayCount: number,
 ): number {
-  if (daysAwayCount < 3) return currentCapacity
-  // Reduce by ~20% for a 3+ day gap, ~35% for a 7+ day gap. Never below floor.
-  const factor = daysAwayCount >= 7 ? 0.65 : 0.8
-  const floor = Math.max(10, Math.round(comfortableMinutes * 0.5))
-  return Math.max(floor, Math.round(currentCapacity * factor))
+  return applyMissedDayRecovery(currentCapacity, comfortableMinutes, daysAwayCount).newCapacity
 }
 
 export const SUBJECT_STYLES: Record<
