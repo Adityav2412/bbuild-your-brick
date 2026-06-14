@@ -12,7 +12,11 @@ import {
   Check,
   AlertTriangle,
   Camera,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react'
+import { useTheme, type ThemeMode } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import { formatMinutes } from '@/lib/algorithm'
@@ -210,7 +214,7 @@ function CapacityCard() {
   return (
     <div className="bg-card rounded-3xl border border-border px-4 py-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-foreground">Current Rhythm</p>
+        <p className="text-sm font-semibold text-foreground">Today&apos;s Rhythm</p>
         <span className="text-sm font-bold text-primary">{formatMinutes(user.currentCapacity)}</span>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
@@ -452,7 +456,48 @@ function SubjectManager() {
   )
 }
 
+// ─── Appearance ────────────────────────────────────────────────────────────
+
+function AppearanceCard() {
+  const { mode, setMode } = useTheme()
+  const options: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
+    { value: 'light', label: 'Light', icon: Sun },
+    { value: 'dark', label: 'Dark', icon: Moon },
+    { value: 'system', label: 'System', icon: Monitor },
+  ]
+  return (
+    <div className="bg-card rounded-3xl border border-border px-4 py-4">
+      <p className="text-sm font-semibold text-foreground mb-1">Appearance</p>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+        Brick follows your system theme by default. Choose what feels calm.
+      </p>
+      <div className="grid grid-cols-3 gap-2">
+        {options.map(({ value, label, icon: Icon }) => {
+          const active = mode === value
+          return (
+            <button
+              key={value}
+              onClick={() => setMode(value)}
+              className={cn(
+                'flex flex-col items-center gap-1.5 rounded-2xl border py-3 transition-all',
+                active
+                  ? 'border-primary/40 bg-primary/8 text-primary'
+                  : 'border-border bg-background text-muted-foreground hover:text-foreground',
+              )}
+              aria-pressed={active}
+            >
+              <Icon size={16} />
+              <span className="text-xs font-medium">{label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Reset confirm ─────────────────────────────────────────────────────────
+
 
 function ResetButton() {
   const { dispatch } = useStore()
@@ -533,6 +578,11 @@ export default function SettingsScreen() {
             </h2>
           </div>
           <SubjectManager />
+        </section>
+
+        {/* Appearance */}
+        <section>
+          <AppearanceCard />
         </section>
 
         {/* Notifications placeholder */}

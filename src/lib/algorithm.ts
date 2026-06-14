@@ -196,12 +196,12 @@ export interface HouseStage {
 
 export const HOUSE_STAGES: HouseStage[] = [
   { index: 0, key: 'foundation', label: 'Foundation',     description: 'The ground is set. Every home begins here.',   bricksRequired: 0 },
-  { index: 1, key: 'walls',      label: 'Walls',          description: 'The walls rise, brick by brick.',                bricksRequired: 4 },
-  { index: 2, key: 'windows',    label: 'Windows',        description: 'Light begins to enter the home.',                bricksRequired: 12 },
-  { index: 3, key: 'door',       label: 'Door',           description: 'A way in. The home becomes yours.',              bricksRequired: 22 },
-  { index: 4, key: 'roof',       label: 'Roof',           description: 'Shelter. Quiet protection overhead.',            bricksRequired: 34 },
-  { index: 5, key: 'garden',     label: 'Garden',         description: 'Life grows around the home you built.',          bricksRequired: 48 },
-  { index: 6, key: 'complete',   label: 'Completed Home', description: 'Built slowly. Built well. Built by you.',        bricksRequired: 64 },
+  { index: 1, key: 'walls',      label: 'Walls',          description: 'The walls rise, brick by brick.',                bricksRequired: 11 },
+  { index: 2, key: 'windows',    label: 'Windows & Door', description: 'Light enters. A way in begins to form.',         bricksRequired: 31 },
+  { index: 3, key: 'door',       label: 'Door',           description: 'A threshold. The home becomes yours.',           bricksRequired: 41 },
+  { index: 4, key: 'roof',       label: 'Roof',           description: 'Shelter. Quiet protection overhead.',            bricksRequired: 51 },
+  { index: 5, key: 'garden',     label: 'Garden',         description: 'Life grows around the home you built.',          bricksRequired: 71 },
+  { index: 6, key: 'complete',   label: 'Completed Home', description: 'Built slowly. Built well. Built by you.',        bricksRequired: 91 },
 ]
 
 export interface HouseState {

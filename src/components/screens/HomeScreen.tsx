@@ -331,9 +331,9 @@ export default function HomeScreen() {
           </div>
         )}
 
-        {/* Current Rhythm pill */}
+        {/* Today's Rhythm pill */}
         <div className="flex items-center justify-between px-4 py-3 bg-card rounded-2xl border border-border">
-          <p className="text-sm text-muted-foreground">Current Rhythm</p>
+          <p className="text-sm text-muted-foreground">Today&apos;s Rhythm</p>
           <p className="text-sm font-semibold text-foreground">
             {formatMinutes(user.currentCapacity)}
           </p>
