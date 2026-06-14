@@ -128,10 +128,40 @@ export const ENERGY_MULTIPLIER: Record<EnergyLevel, number> = {
   low: 0.7,
 }
 
-export function adjustCapacityForEnergy(capacity: number, energy: EnergyLevel | null | undefined): number {
+export function adjustCapacityForEnergy(
+  capacity: number,
+  energy: EnergyLevel | null | undefined,
+  honestyDampener: number = 1,
+): number {
   if (!energy) return capacity
-  const m = ENERGY_MULTIPLIER[energy]
-  return Math.max(5, Math.round(capacity * m))
+  const baseMult = ENERGY_MULTIPLIER[energy]
+  // honestyDampener ∈ [0..1] — 1 means full effect, 0 means ignore the report.
+  // We only ever soften reductions (energy < 1), never amplify them.
+  const effectiveMult = baseMult >= 1 ? baseMult : 1 - (1 - baseMult) * honestyDampener
+  return Math.max(10, Math.round(capacity * effectiveMult))
+}
+
+// ─── Energy honesty ──────────────────────────────────────────────────────────
+// If a user repeatedly reports "low" energy but completes assignments easily,
+// Brick quietly trusts the report less. Returns a multiplier in [0..1]:
+//   1.0 → full trust  ·  0.4 → trust is halved
+export function computeEnergyHonesty(
+  history: { date: string; energy: EnergyLevel; completionPct: number }[] | undefined,
+): number {
+  if (!history || history.length < 4) return 1
+  const recent = history.slice(-10)
+  let lowReports = 0
+  let lowOvershoot = 0
+  for (const h of recent) {
+    if (h.energy === 'low' || h.energy === 'okay') {
+      lowReports++
+      if (h.completionPct >= 0.95) lowOvershoot++
+    }
+  }
+  if (lowReports < 3) return 1
+  const overshootRate = lowOvershoot / lowReports
+  // Smooth dampener: 0 overshoot → 1.0, 100% overshoot → 0.4
+  return Math.max(0.4, 1 - overshootRate * 0.6)
 }
 
 // ─── Lecture difficulty ──────────────────────────────────────────────────────
