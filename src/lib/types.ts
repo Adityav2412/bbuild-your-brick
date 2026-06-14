@@ -29,6 +29,12 @@ export interface User {
   avatarUrl: string | null
   /** Psychology engine: rolling feedback counts for capacity adjustment */
   recentFeedback: SessionFeedback[]
+  /** Snapshot of (date, capacity) values used to enforce the 10%/week growth cap */
+  capacityHistory?: { date: string; capacity: number }[]
+  /** When true the adaptive engine is cooling down after consecutive difficult sessions */
+  progressionPaused?: boolean
+  /** Short note from the mentor after the last feedback (e.g. "Easing things down a touch.") */
+  lastMentorNote?: string | null
 }
 
 export interface Lecture {
