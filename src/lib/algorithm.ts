@@ -26,10 +26,29 @@ import type {
 export interface CapacityResult {
   newCapacity: number
   updatedFeedback: SessionFeedback[]
+  /** New confidence score after this feedback */
+  confidenceScore: number
   /** True if the engine intentionally paused growth (cooldown after 2 difficult) */
   progressionPaused: boolean
   /** Optional short note the mentor can surface to the user */
   note: string | null
+}
+
+// ─── Confidence Engine ───────────────────────────────────────────────────────
+// Each completed session adjusts a running confidence score.
+//   Easy          +2
+//   Comfortable   +1
+//   Difficult     -1
+//   Couldn't      -3
+//
+// When the score crosses +5  → rhythm grows by 2 minutes, score resets to 0.
+// When it crosses -3          → rhythm eases by 2 minutes, score resets to 0.
+// All other sessions just nudge the score so changes feel smooth and stable.
+export const CONFIDENCE_DELTA: Record<SessionFeedback, number> = {
+  easy: 2,
+  comfortable: 1,
+  difficult: -1,
+  'couldnt-finish': -3,
 }
 
 export function applyFeedbackToCapacity(
@@ -39,47 +58,67 @@ export function applyFeedbackToCapacity(
   newFeedback: SessionFeedback,
   capacity7DaysAgo: number | null = null,
   maxRhythm: number = 240,
+  confidenceScore: number = 0,
 ): CapacityResult {
   const updated = [...recentFeedback, newFeedback].slice(-8)
   const last2 = updated.slice(-2)
-  const last3 = updated.slice(-3)
 
   const floor = Math.max(10, Math.round(comfortableMinutes * 0.5))
   const baseFor10pct = capacity7DaysAgo ?? comfortableMinutes
   // The hard ceiling is the smaller of (10%/week growth cap, user's chosen max)
   const weeklyCeiling = Math.min(maxRhythm, Math.round(baseFor10pct * 1.1))
-  const absoluteCeiling = maxRhythm
 
   let newCapacity = currentCapacity
   let note: string | null = null
+  let nextConfidence = confidenceScore + CONFIDENCE_DELTA[newFeedback]
 
   // 2 difficult in a row → pause progression (hold and cool down)
   if (last2.length === 2 && last2.every((f) => f === 'difficult')) {
-    note = "Holding steady. Let's give today the same shape as yesterday."
-    return { newCapacity: currentCapacity, updatedFeedback: updated, progressionPaused: true, note }
+    return {
+      newCapacity: currentCapacity,
+      updatedFeedback: updated,
+      confidenceScore: nextConfidence,
+      progressionPaused: true,
+      note: "Holding steady. Let's give today the same shape as yesterday.",
+    }
   }
 
-  if (newFeedback === 'couldnt-finish') {
-    newCapacity = Math.max(floor, currentCapacity - 3)
-    note = 'Easing things down a touch. Tomorrow we begin again.'
-  } else if (newFeedback === 'difficult') {
-    newCapacity = currentCapacity // hold
-  } else if (last3.length === 3 && last3.every((f) => f === 'easy')) {
-    const target = Math.min(weeklyCeiling, currentCapacity + 5)
-    if (target > currentCapacity) note = 'Your rhythm grew by a few minutes. Quietly.'
-    newCapacity = target
-  } else if (last3.length === 3 && last3.every((f) => f === 'comfortable')) {
+  // Cross +5 → grow rhythm gently
+  if (nextConfidence >= 5) {
     const target = Math.min(weeklyCeiling, currentCapacity + 2)
-    if (target > currentCapacity) note = 'A small, sustainable step in your rhythm.'
-    newCapacity = target
+    if (target > currentCapacity) {
+      newCapacity = target
+      note = 'Your rhythm grew by a few minutes. Quietly.'
+    }
+    nextConfidence = 0
+  }
+  // Cross -3 → ease rhythm gently
+  else if (nextConfidence <= -3) {
+    const target = Math.max(floor, currentCapacity - 2)
+    if (target < currentCapacity) {
+      newCapacity = target
+      note =
+        newFeedback === 'couldnt-finish'
+          ? 'Easing things down a touch. Tomorrow we begin again.'
+          : 'Softening today\u2019s rhythm. Steadiness matters more than speed.'
+    }
+    nextConfidence = 0
   }
 
-  // Enforce both ceilings defensively
+  // Defensive clamps
   if (newCapacity > weeklyCeiling) newCapacity = weeklyCeiling
-  if (newCapacity > absoluteCeiling) newCapacity = absoluteCeiling
+  if (newCapacity > maxRhythm) newCapacity = maxRhythm
+  if (newCapacity < floor) newCapacity = floor
 
-  return { newCapacity, updatedFeedback: updated, progressionPaused: false, note }
+  return {
+    newCapacity,
+    updatedFeedback: updated,
+    confidenceScore: nextConfidence,
+    progressionPaused: false,
+    note,
+  }
 }
+
 
 // ─── Energy adjustment (today-only) ──────────────────────────────────────────
 // Daily check-in scales today's assigned minutes WITHOUT touching long-term rhythm.
