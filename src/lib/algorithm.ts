@@ -427,6 +427,17 @@ export interface HouseState {
   fraction: number
   recentRestoration: string | null
   description: string
+  /** True when syllabus has grown since the progress floor was set — house is expanding. */
+  expansion: boolean
+  /** How many additional syllabus minutes were added after the floor was locked. */
+  expansionMinutes: number
+}
+
+export interface HouseFloor {
+  /** Highest fraction ever achieved, 0..1+. The visible house never drops below this. */
+  fraction: number
+  /** Total syllabus minutes when the floor was last captured. */
+  totalMinutes: number
 }
 
 export interface SyllabusProgress {
