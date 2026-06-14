@@ -238,28 +238,30 @@ export default function ProgressScreen() {
           </div>
         </div>
 
-        {/* Observatory restoration timeline */}
+        {/* House of Knowledge timeline */}
         <div className="bg-card rounded-3xl border border-border p-5">
           <div className="flex items-center justify-between mb-1">
             <h3 className="font-semibold text-base text-foreground tracking-tight">
-              Observatory Restoration
+              House of Knowledge
             </h3>
             <span className="text-xs text-primary font-semibold">
-              {Math.round(obs.fraction * 100)}%
+              {Math.round(house.fraction * 100)}%
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mb-5">{obs.description}</p>
+          <p className="text-xs text-muted-foreground mb-5">
+            {house.stage.label} — {house.description}
+          </p>
 
-          {/* Compact progress bar */}
           <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-5">
             <div
               className="h-full bg-primary rounded-full transition-all duration-700"
-              style={{ width: `${obs.fraction * 100}%` }}
+              style={{ width: `${house.fraction * 100}%` }}
             />
           </div>
 
-          <ObservatoryTimeline level={obs.level} />
+          <HouseTimeline level={house.level} totalBricks={house.bricks} />
         </div>
+
 
         {/* Subject breakdown */}
         {subjectProgress.length > 0 && (
