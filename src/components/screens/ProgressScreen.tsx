@@ -3,7 +3,7 @@
 import { BookOpen, TrendingUp, Sparkles, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
-import { formatMinutes, getHouseState, HOUSE_STAGES } from '@/lib/algorithm'
+import { formatMinutes, getHouseState, getSyllabusProgress, getHouseScale, HOUSE_STAGES } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
 
 // ─── House of Knowledge Timeline ──────────────────────────────────────────────
@@ -18,7 +18,7 @@ const STAGE_ICONS: Record<string, string> = {
   complete: '★',
 }
 
-function HouseTimeline({ level, totalBricks }: { level: number; totalBricks: number }) {
+function HouseTimeline({ level }: { level: number }) {
   return (
     <div className="relative">
       <div className="absolute left-[18px] top-4 bottom-4 w-px bg-border" />
@@ -87,9 +87,9 @@ function HouseTimeline({ level, totalBricks }: { level: number; totalBricks: num
                   isCompleted ? 'text-primary/60' : 'text-muted-foreground/30'
                 )}
               >
-                {stage.bricksRequired === 0
+                {stage.fractionRequired === 0
                   ? 'Start'
-                  : `${totalBricks >= stage.bricksRequired ? '✓ ' : ''}${stage.bricksRequired} bricks`}
+                  : `${isCompleted ? '✓ ' : ''}${Math.round(stage.fractionRequired * 100)}%`}
               </span>
             </div>
           )
@@ -107,7 +107,9 @@ export default function ProgressScreen() {
 
   if (!user) return null
 
-  const house = getHouseState(user.totalSessions, user.houseEffortScore)
+  const syllabus = getSyllabusProgress(subjects)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus)
+  const scale = getHouseScale(syllabus.totalMinutes)
 
   // Subject-level progress
   const subjectProgress = subjects.map((s) => {
@@ -201,14 +203,17 @@ export default function ProgressScreen() {
         <div className="bg-card rounded-3xl border border-border p-5">
           <div className="flex items-center justify-between mb-1">
             <h3 className="font-semibold text-base text-foreground tracking-tight">
-              House of Knowledge
+              Your {scale.label} of Knowledge
             </h3>
             <span className="text-xs text-primary font-semibold">
               {Math.round(house.fraction * 100)}%
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mb-5">
+          <p className="text-xs text-muted-foreground mb-1">
             {house.stage.label} — {house.description}
+          </p>
+          <p className="text-[11px] text-muted-foreground/70 mb-5">
+            {formatMinutes(syllabus.completedMinutes)} of {formatMinutes(syllabus.totalMinutes)} studied
           </p>
 
           <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-5">
@@ -218,7 +223,7 @@ export default function ProgressScreen() {
             />
           </div>
 
-          <HouseTimeline level={house.level} totalBricks={house.bricks} />
+          <HouseTimeline level={house.level} />
         </div>
 
         {/* Subject breakdown — simple completion only */}

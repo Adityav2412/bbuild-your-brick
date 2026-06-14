@@ -6,11 +6,14 @@ import {
   getGreeting,
   getMentorMessage,
   getHouseState,
+  getSyllabusProgress,
+  getHouseScale,
   formatMinutes,
   daysAway,
   adjustCapacityForEnergy,
 } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
+import CompanionAvatar from '@/components/CompanionAvatar'
 import type { EnergyLevel } from '@/lib/types'
 
 // ─── House of Knowledge Illustration ──────────────────────────────────────────
@@ -139,10 +142,12 @@ function HouseIllustration({ level, bricks }: { level: number; bricks: number })
 
 function HouseCard() {
   const { state } = useStore()
-  const { user } = state
+  const { user, subjects } = state
   if (!user) return null
 
-  const house = getHouseState(user.totalSessions, user.houseEffortScore)
+  const syllabus = getSyllabusProgress(subjects)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus)
+  const scale = getHouseScale(syllabus.totalMinutes)
   const pct = Math.round(house.fraction * 100)
 
   return (
@@ -151,7 +156,7 @@ function HouseCard() {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-primary-foreground/60 text-xs font-medium uppercase tracking-wide">
-            The House of Knowledge
+            Your {scale.label} of Knowledge
           </p>
           <p className="text-primary-foreground font-semibold text-sm mt-0.5">
             {house.stage.label} — {house.stage.description}
@@ -181,7 +186,7 @@ function HouseCard() {
           </span>
           <span className="text-primary-foreground/60 text-[10px]">
             {house.nextStage
-              ? `Next: ${house.nextStage.label} in ${house.bricksToNext} brick${house.bricksToNext !== 1 ? 's' : ''}`
+              ? `Next: ${house.nextStage.label}`
               : 'Home complete'}
           </span>
         </div>
@@ -274,17 +279,20 @@ export default function HomeScreen() {
       </div>
 
       <div className="px-5 space-y-4">
-        {/* Greeting + mentor message */}
+        {/* Greeting + mentor message + companion */}
         <div>
           <h1 className="font-bold text-3xl text-foreground leading-tight tracking-tight">
             {greeting}, {user.name.split(' ')[0]}.
           </h1>
-          <p
-            key={mentorMessage}
-            className="text-muted-foreground mt-1 text-base leading-relaxed animate-mentor-fade"
-          >
-            {mentorMessage}
-          </p>
+          <div className="mt-2 flex items-start gap-3">
+            <CompanionAvatar size={36} className="mt-0.5" />
+            <p
+              key={mentorMessage}
+              className="text-muted-foreground text-base leading-relaxed animate-mentor-fade flex-1"
+            >
+              {mentorMessage}
+            </p>
+          </div>
         </div>
 
         {/* Exam countdown */}

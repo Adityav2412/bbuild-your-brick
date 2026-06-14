@@ -145,6 +145,7 @@ function reducer(state: AppState, action: Action): AppState {
         joinDate: todayString(),
         avatarUrl: null,
         recentFeedback: [],
+        confidenceScore: 0,
         todayEnergy: null,
         energyDate: null,
         recoveryMode: false,
@@ -340,6 +341,7 @@ function reducer(state: AppState, action: Action): AppState {
         action.feedback,
         capacity7DaysAgo,
         state.user.maxRhythm,
+        state.user.confidenceScore ?? 0,
       )
 
       const today = todayString()
@@ -352,6 +354,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state.user,
         currentCapacity: result.newCapacity,
         recentFeedback: result.updatedFeedback,
+        confidenceScore: result.confidenceScore,
         capacityHistory: newHistory,
         progressionPaused: result.progressionPaused,
         lastMentorNote: result.note,
@@ -398,6 +401,7 @@ function reducer(state: AppState, action: Action): AppState {
         recoveryMode: false,
         progressionPaused: false,
         recentFeedback: [],
+        confidenceScore: 0,
         lastMentorNote: "A fresh foundation. We rebuild gently.",
       }
       const schedule = buildTodaySchedule(
@@ -450,6 +454,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (parsed.user?.onboardingComplete) {
           // Backfill missing fields for users from older versions
           if (!parsed.user.recentFeedback) parsed.user.recentFeedback = []
+          if (parsed.user.confidenceScore === undefined) parsed.user.confidenceScore = 0
           if (parsed.user.avatarUrl === undefined) parsed.user.avatarUrl = null
           if (!parsed.user.capacityHistory) parsed.user.capacityHistory = []
           if (parsed.user.progressionPaused === undefined) parsed.user.progressionPaused = false

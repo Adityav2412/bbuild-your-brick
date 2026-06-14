@@ -26,10 +26,29 @@ import type {
 export interface CapacityResult {
   newCapacity: number
   updatedFeedback: SessionFeedback[]
+  /** New confidence score after this feedback */
+  confidenceScore: number
   /** True if the engine intentionally paused growth (cooldown after 2 difficult) */
   progressionPaused: boolean
   /** Optional short note the mentor can surface to the user */
   note: string | null
+}
+
+// ─── Confidence Engine ───────────────────────────────────────────────────────
+// Each completed session adjusts a running confidence score.
+//   Easy          +2
+//   Comfortable   +1
+//   Difficult     -1
+//   Couldn't      -3
+//
+// When the score crosses +5  → rhythm grows by 2 minutes, score resets to 0.
+// When it crosses -3          → rhythm eases by 2 minutes, score resets to 0.
+// All other sessions just nudge the score so changes feel smooth and stable.
+export const CONFIDENCE_DELTA: Record<SessionFeedback, number> = {
+  easy: 2,
+  comfortable: 1,
+  difficult: -1,
+  'couldnt-finish': -3,
 }
 
 export function applyFeedbackToCapacity(
@@ -39,47 +58,67 @@ export function applyFeedbackToCapacity(
   newFeedback: SessionFeedback,
   capacity7DaysAgo: number | null = null,
   maxRhythm: number = 240,
+  confidenceScore: number = 0,
 ): CapacityResult {
   const updated = [...recentFeedback, newFeedback].slice(-8)
   const last2 = updated.slice(-2)
-  const last3 = updated.slice(-3)
 
   const floor = Math.max(10, Math.round(comfortableMinutes * 0.5))
   const baseFor10pct = capacity7DaysAgo ?? comfortableMinutes
   // The hard ceiling is the smaller of (10%/week growth cap, user's chosen max)
   const weeklyCeiling = Math.min(maxRhythm, Math.round(baseFor10pct * 1.1))
-  const absoluteCeiling = maxRhythm
 
   let newCapacity = currentCapacity
   let note: string | null = null
+  let nextConfidence = confidenceScore + CONFIDENCE_DELTA[newFeedback]
 
   // 2 difficult in a row → pause progression (hold and cool down)
   if (last2.length === 2 && last2.every((f) => f === 'difficult')) {
-    note = "Holding steady. Let's give today the same shape as yesterday."
-    return { newCapacity: currentCapacity, updatedFeedback: updated, progressionPaused: true, note }
+    return {
+      newCapacity: currentCapacity,
+      updatedFeedback: updated,
+      confidenceScore: nextConfidence,
+      progressionPaused: true,
+      note: "Holding steady. Let's give today the same shape as yesterday.",
+    }
   }
 
-  if (newFeedback === 'couldnt-finish') {
-    newCapacity = Math.max(floor, currentCapacity - 3)
-    note = 'Easing things down a touch. Tomorrow we begin again.'
-  } else if (newFeedback === 'difficult') {
-    newCapacity = currentCapacity // hold
-  } else if (last3.length === 3 && last3.every((f) => f === 'easy')) {
-    const target = Math.min(weeklyCeiling, currentCapacity + 5)
-    if (target > currentCapacity) note = 'Your rhythm grew by a few minutes. Quietly.'
-    newCapacity = target
-  } else if (last3.length === 3 && last3.every((f) => f === 'comfortable')) {
+  // Cross +5 → grow rhythm gently
+  if (nextConfidence >= 5) {
     const target = Math.min(weeklyCeiling, currentCapacity + 2)
-    if (target > currentCapacity) note = 'A small, sustainable step in your rhythm.'
-    newCapacity = target
+    if (target > currentCapacity) {
+      newCapacity = target
+      note = 'Your rhythm grew by a few minutes. Quietly.'
+    }
+    nextConfidence = 0
+  }
+  // Cross -3 → ease rhythm gently
+  else if (nextConfidence <= -3) {
+    const target = Math.max(floor, currentCapacity - 2)
+    if (target < currentCapacity) {
+      newCapacity = target
+      note =
+        newFeedback === 'couldnt-finish'
+          ? 'Easing things down a touch. Tomorrow we begin again.'
+          : 'Softening today\u2019s rhythm. Steadiness matters more than speed.'
+    }
+    nextConfidence = 0
   }
 
-  // Enforce both ceilings defensively
+  // Defensive clamps
   if (newCapacity > weeklyCeiling) newCapacity = weeklyCeiling
-  if (newCapacity > absoluteCeiling) newCapacity = absoluteCeiling
+  if (newCapacity > maxRhythm) newCapacity = maxRhythm
+  if (newCapacity < floor) newCapacity = floor
 
-  return { newCapacity, updatedFeedback: updated, progressionPaused: false, note }
+  return {
+    newCapacity,
+    updatedFeedback: updated,
+    confidenceScore: nextConfidence,
+    progressionPaused: false,
+    note,
+  }
 }
+
 
 // ─── Energy adjustment (today-only) ──────────────────────────────────────────
 // Daily check-in scales today's assigned minutes WITHOUT touching long-term rhythm.
@@ -310,25 +349,40 @@ export interface HouseStage {
   label: string
   description: string
   bricksRequired: number
+  /** Stage threshold expressed as syllabus completion fraction (0..1, or >1 for expansion stages). */
+  fractionRequired: number
   /** Bonus / expansion stages render with a softer tone */
   isExpansion?: boolean
 }
 
 export const HOUSE_STAGES: HouseStage[] = [
-  { index: 0, key: 'foundation',       label: 'Foundation',       description: 'The ground is set. Every home begins here.',     bricksRequired: 0 },
-  { index: 1, key: 'walls',            label: 'Walls',            description: 'The walls rise, brick by brick.',                bricksRequired: 11 },
-  { index: 2, key: 'windows',          label: 'Windows & Door',   description: 'Light enters. A way in begins to form.',         bricksRequired: 31 },
-  { index: 3, key: 'door',             label: 'Door',             description: 'A threshold. The home becomes yours.',           bricksRequired: 41 },
-  { index: 4, key: 'roof',             label: 'Roof',             description: 'Shelter. Quiet protection overhead.',            bricksRequired: 51 },
-  { index: 5, key: 'garden',           label: 'Garden',           description: 'Life grows around the home you built.',          bricksRequired: 71 },
-  { index: 6, key: 'complete',         label: 'Completed Home',   description: 'Built slowly. Built well. Built by you.',        bricksRequired: 91 },
+  { index: 0, key: 'foundation',       label: 'Foundation',       description: 'The ground is set. Every home begins here.',     bricksRequired: 0,   fractionRequired: 0    },
+  { index: 1, key: 'walls',            label: 'Walls',            description: 'The walls rise, brick by brick.',                bricksRequired: 11,  fractionRequired: 0.10 },
+  { index: 2, key: 'windows',          label: 'Windows & Door',   description: 'Light enters. A way in begins to form.',         bricksRequired: 31,  fractionRequired: 0.25 },
+  { index: 3, key: 'door',             label: 'Door',             description: 'A threshold. The home becomes yours.',           bricksRequired: 41,  fractionRequired: 0.40 },
+  { index: 4, key: 'roof',             label: 'Roof',             description: 'Shelter. Quiet protection overhead.',            bricksRequired: 51,  fractionRequired: 0.55 },
+  { index: 5, key: 'garden',           label: 'Garden',           description: 'Life grows around the home you built.',          bricksRequired: 71,  fractionRequired: 0.70 },
+  { index: 6, key: 'complete',         label: 'Completed Home',   description: 'Built slowly. Built well. Built by you.',        bricksRequired: 91,  fractionRequired: 0.90 },
   // Long-term expansions — the journey continues for years.
-  { index: 7, key: 'study-room',       label: 'Study Room',       description: 'A quiet room for deeper focus.',                 bricksRequired: 130, isExpansion: true },
-  { index: 8, key: 'library',          label: 'Library',          description: 'Walls of books. A mind that lasts.',             bricksRequired: 180, isExpansion: true },
-  { index: 9, key: 'reading-corner',   label: 'Reading Corner',   description: 'A soft chair by the window.',                    bricksRequired: 240, isExpansion: true },
-  { index: 10, key: 'garden-expansion', label: 'Garden Expansion', description: 'The garden widens, season after season.',       bricksRequired: 320, isExpansion: true },
-  { index: 11, key: 'workshop',         label: 'Workshop',         description: 'A place to build, beyond the home itself.',      bricksRequired: 420, isExpansion: true },
+  { index: 7, key: 'study-room',       label: 'Study Room',       description: 'A quiet room for deeper focus.',                 bricksRequired: 130, fractionRequired: 1.05, isExpansion: true },
+  { index: 8, key: 'library',          label: 'Library',          description: 'Walls of books. A mind that lasts.',             bricksRequired: 180, fractionRequired: 1.15, isExpansion: true },
+  { index: 9, key: 'reading-corner',   label: 'Reading Corner',   description: 'A soft chair by the window.',                    bricksRequired: 240, fractionRequired: 1.25, isExpansion: true },
+  { index: 10, key: 'garden-expansion', label: 'Garden Expansion', description: 'The garden widens, season after season.',       bricksRequired: 320, fractionRequired: 1.40, isExpansion: true },
+  { index: 11, key: 'workshop',         label: 'Workshop',         description: 'A place to build, beyond the home itself.',      bricksRequired: 420, fractionRequired: 1.60, isExpansion: true },
 ]
+
+// ─── House Scale ─────────────────────────────────────────────────────────────
+// The home Brick builds adapts to the size of the user's syllabus.
+//   Small  → Cottage,  Medium → House,  Large → Villa,  Very large → Estate
+export type HouseScaleKey = 'cottage' | 'house' | 'villa' | 'estate'
+export interface HouseScale { key: HouseScaleKey; label: string; description: string }
+
+export function getHouseScale(totalSyllabusMinutes: number): HouseScale {
+  if (totalSyllabusMinutes < 1000)  return { key: 'cottage', label: 'Cottage', description: 'A small, complete home.' }
+  if (totalSyllabusMinutes < 5000)  return { key: 'house',   label: 'House',   description: 'A steady family home.' }
+  if (totalSyllabusMinutes < 15000) return { key: 'villa',   label: 'Villa',   description: 'A spacious, layered home.' }
+  return { key: 'estate', label: 'Estate', description: 'A long, generational home.' }
+}
 
 export interface HouseState {
   bricks: number
@@ -342,14 +396,78 @@ export interface HouseState {
   description: string
 }
 
+export interface SyllabusProgress {
+  /** Sum of watchedMinutes across every lecture (capped per lecture). */
+  completedMinutes: number
+  /** Sum of every lecture's durationMinutes. */
+  totalMinutes: number
+}
+
 /**
- * @param totalSessions  Visible brick count (one per completed session).
- * @param effortScore    Optional internal weighted score for finer-grained
- *                       progression within a stage. Pass `undefined` to fall
- *                       back to brick count only.
+ * Compute the House of Knowledge state.
+ *
+ * The house represents OVERALL SYLLABUS COMPLETION (not session count) when
+ * syllabus progress is provided. Brick count remains visible — it's how
+ * Brick celebrates each placed brick — but stage transitions are driven by
+ * how much of the syllabus the student has actually completed.
+ *
+ * Back-compat: if `syllabus` is omitted, stage progression falls back to the
+ * old brick-count thresholds.
  */
-export function getHouseState(totalSessions: number, effortScore?: number): HouseState {
+export function getHouseState(
+  totalSessions: number,
+  effortScore?: number,
+  syllabus?: SyllabusProgress,
+): HouseState {
   const bricks = Math.max(0, totalSessions)
+
+  // ── Syllabus-driven progression ───────────────────────────────────────────
+  if (syllabus && syllabus.totalMinutes > 0) {
+    const fractionRaw = syllabus.completedMinutes / syllabus.totalMinutes
+    // Allow fraction > 1 so long-term expansions can unlock for users who
+    // continue past 100% (rare, but possible with repeated practice).
+    const fraction = Math.max(0, fractionRaw)
+
+    let level = 0
+    for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
+      if (fraction >= HOUSE_STAGES[i].fractionRequired) {
+        level = i
+        break
+      }
+    }
+    const stage = HOUSE_STAGES[level]
+    const nextStage = HOUSE_STAGES[level + 1] ?? null
+    const stageSpan = nextStage
+      ? nextStage.fractionRequired - stage.fractionRequired
+      : 0
+    const stageFraction =
+      stageSpan > 0
+        ? Math.min(1, Math.max(0, (fraction - stage.fractionRequired) / stageSpan))
+        : 1
+    // Bricks-to-next now means "how much more syllabus" — translate to bricks
+    // as a soft hint using the user's average minutes-per-brick.
+    const avgMinPerBrick = bricks > 0 ? syllabus.completedMinutes / bricks : 30
+    const minutesToNext = nextStage
+      ? Math.max(0, (nextStage.fractionRequired - fraction) * syllabus.totalMinutes)
+      : 0
+    const bricksToNext = nextStage
+      ? Math.max(1, Math.ceil(minutesToNext / Math.max(15, avgMinPerBrick)))
+      : 0
+
+    return {
+      bricks,
+      level,
+      stage,
+      nextStage,
+      bricksToNext,
+      stageFraction,
+      fraction: Math.min(1, fraction),
+      recentRestoration: bricks > 0 ? `+1 brick placed` : null,
+      description: stage.description,
+    }
+  }
+
+  // ── Fallback: brick-count progression (legacy) ────────────────────────────
   let level = 0
   for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
     if (bricks >= HOUSE_STAGES[i].bricksRequired) {
@@ -360,10 +478,6 @@ export function getHouseState(totalSessions: number, effortScore?: number): Hous
   const stage = HOUSE_STAGES[level]
   const nextStage = HOUSE_STAGES[level + 1] ?? null
   const bricksToNext = nextStage ? Math.max(0, nextStage.bricksRequired - bricks) : 0
-
-  // Stage fraction: use the effort score if provided, otherwise fall back to
-  // bricks. Either way it stays bounded by the stage span so the visible
-  // brick number is still the source of truth for stage transitions.
   const stageSpan = nextStage ? nextStage.bricksRequired - stage.bricksRequired : 1
   let withinFromBricks = nextStage ? bricks - stage.bricksRequired : stageSpan
   if (effortScore !== undefined && nextStage) {
@@ -371,7 +485,7 @@ export function getHouseState(totalSessions: number, effortScore?: number): Hous
     withinFromBricks = Math.min(stageSpan, Math.max(withinFromBricks, effortScore - baseEffort))
   }
   const stageFraction = stageSpan > 0 ? Math.min(1, withinFromBricks / stageSpan) : 1
-  const totalBricksForFull = HOUSE_STAGES[6].bricksRequired // base house only
+  const totalBricksForFull = HOUSE_STAGES[6].bricksRequired
   const fraction = Math.min(1, bricks / totalBricksForFull)
 
   return {
@@ -385,6 +499,19 @@ export function getHouseState(totalSessions: number, effortScore?: number): Hous
     recentRestoration: bricks > 0 ? `+1 brick placed` : null,
     description: stage.description,
   }
+}
+
+/** Aggregate completed vs. total minutes across the syllabus. */
+export function getSyllabusProgress(subjects: Subject[]): SyllabusProgress {
+  let completed = 0
+  let total = 0
+  for (const s of subjects) {
+    for (const l of s.lectures) {
+      total += l.durationMinutes
+      completed += Math.min(l.watchedMinutes, l.durationMinutes)
+    }
+  }
+  return { completedMinutes: completed, totalMinutes: total }
 }
 
 /** Effort score: each session contributes 1 + a small bonus per 30 minutes. */
