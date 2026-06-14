@@ -399,7 +399,7 @@ export default function HomeScreen() {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-white/10 px-3 py-2.5">
                 <p className="text-[10px] uppercase tracking-wide text-primary-foreground/60">Lectures</p>
-                <p className="font-bold text-lg">{syllabus.completedLectures}</p>
+                <p className="font-bold text-lg">{subjects.filter((s) => !s.archived).reduce((n, s) => n + s.lectures.filter((l) => l.status === 'completed').length, 0)}</p>
               </div>
               <div className="rounded-2xl bg-white/10 px-3 py-2.5">
                 <p className="text-[10px] uppercase tracking-wide text-primary-foreground/60">Total minutes</p>
