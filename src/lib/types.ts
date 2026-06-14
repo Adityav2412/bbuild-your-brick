@@ -35,6 +35,8 @@ export interface User {
   avatarUrl: string | null
   /** Psychology engine: rolling feedback counts for capacity adjustment */
   recentFeedback: SessionFeedback[]
+  /** Running confidence score from the confidence engine. Crosses thresholds → rhythm tunes gently. */
+  confidenceScore?: number
   /** Snapshot of (date, capacity) values used to enforce the 10%/week growth cap */
   capacityHistory?: { date: string; capacity: number }[]
   /** When true the adaptive engine is cooling down after consecutive difficult sessions */
