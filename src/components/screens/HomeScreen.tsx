@@ -279,17 +279,20 @@ export default function HomeScreen() {
       </div>
 
       <div className="px-5 space-y-4">
-        {/* Greeting + mentor message */}
+        {/* Greeting + mentor message + companion */}
         <div>
           <h1 className="font-bold text-3xl text-foreground leading-tight tracking-tight">
             {greeting}, {user.name.split(' ')[0]}.
           </h1>
-          <p
-            key={mentorMessage}
-            className="text-muted-foreground mt-1 text-base leading-relaxed animate-mentor-fade"
-          >
-            {mentorMessage}
-          </p>
+          <div className="mt-2 flex items-start gap-3">
+            <CompanionAvatar size={36} className="mt-0.5" />
+            <p
+              key={mentorMessage}
+              className="text-muted-foreground text-base leading-relaxed animate-mentor-fade flex-1"
+            >
+              {mentorMessage}
+            </p>
+          </div>
         </div>
 
         {/* Exam countdown */}
