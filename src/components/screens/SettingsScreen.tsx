@@ -15,10 +15,14 @@ import {
   Sun,
   Moon,
   Monitor,
+  Archive,
+  Download,
+  Upload,
+  RotateCcw,
 } from 'lucide-react'
 import { useTheme, type ThemeMode } from '@/lib/theme'
 import { cn } from '@/lib/utils'
-import { useStore } from '@/lib/store'
+import { useStore, exportBackup, importBackup } from '@/lib/store'
 import { formatMinutes } from '@/lib/algorithm'
 import { SUBJECT_COLORS, SUBJECT_ICONS } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
