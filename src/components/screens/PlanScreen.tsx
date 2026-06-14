@@ -8,7 +8,8 @@ import SubjectIcon from '@/components/SubjectIcon'
 
 export default function PlanScreen() {
   const { state, dispatch } = useStore()
-  const { subjects, todaySchedule, sessions, user } = state
+  const { subjects: allSubjects, todaySchedule, sessions, user } = state
+  const subjects = allSubjects.filter((s) => !s.archived)
 
   if (!user) return null
 
