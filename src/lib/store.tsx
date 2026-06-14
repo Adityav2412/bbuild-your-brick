@@ -21,6 +21,8 @@ import {
   adjustCapacityForEnergy,
   applyMissedDayRecovery,
   computeEffortScore,
+  computeEnergyHonesty,
+  getSyllabusProgress,
   SUBJECT_COLORS,
   SUBJECT_ICONS,
 } from './algorithm'
