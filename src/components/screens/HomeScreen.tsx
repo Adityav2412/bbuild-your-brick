@@ -142,10 +142,12 @@ function HouseIllustration({ level, bricks }: { level: number; bricks: number })
 
 function HouseCard() {
   const { state } = useStore()
-  const { user } = state
+  const { user, subjects } = state
   if (!user) return null
 
-  const house = getHouseState(user.totalSessions, user.houseEffortScore)
+  const syllabus = getSyllabusProgress(subjects)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus)
+  const scale = getHouseScale(syllabus.totalMinutes)
   const pct = Math.round(house.fraction * 100)
 
   return (
@@ -154,7 +156,7 @@ function HouseCard() {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-primary-foreground/60 text-xs font-medium uppercase tracking-wide">
-            The House of Knowledge
+            Your {scale.label} of Knowledge
           </p>
           <p className="text-primary-foreground font-semibold text-sm mt-0.5">
             {house.stage.label} — {house.stage.description}
@@ -184,7 +186,7 @@ function HouseCard() {
           </span>
           <span className="text-primary-foreground/60 text-[10px]">
             {house.nextStage
-              ? `Next: ${house.nextStage.label} in ${house.bricksToNext} brick${house.bricksToNext !== 1 ? 's' : ''}`
+              ? `Next: ${house.nextStage.label}`
               : 'Home complete'}
           </span>
         </div>
