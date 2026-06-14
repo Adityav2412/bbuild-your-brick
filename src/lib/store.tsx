@@ -341,6 +341,7 @@ function reducer(state: AppState, action: Action): AppState {
         action.feedback,
         capacity7DaysAgo,
         state.user.maxRhythm,
+        state.user.confidenceScore ?? 0,
       )
 
       const today = todayString()
@@ -353,6 +354,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state.user,
         currentCapacity: result.newCapacity,
         recentFeedback: result.updatedFeedback,
+        confidenceScore: result.confidenceScore,
         capacityHistory: newHistory,
         progressionPaused: result.progressionPaused,
         lastMentorNote: result.note,
