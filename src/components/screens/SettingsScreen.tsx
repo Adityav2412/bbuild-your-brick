@@ -454,38 +454,64 @@ function SubjectManager() {
                   </button>
                 </div>
 
-                {showDeleteConfirm === subject.id ? (
-                  <div className="bg-destructive/10 rounded-xl p-3 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle size={14} className="text-destructive shrink-0" />
-                      <p className="text-xs text-destructive font-medium">
-                        Delete {subject.name}? This cannot be undone.
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => deleteSubject(subject.id)}
-                        className="flex-1 h-9 bg-destructive text-white rounded-lg text-sm font-semibold"
-                      >
-                        Delete
-                      </button>
-                      <button
-                        onClick={() => setShowDeleteConfirm(null)}
-                        className="flex-1 h-9 bg-muted text-foreground rounded-lg text-sm font-medium"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowDeleteConfirm(subject.id)}
-                    className="flex items-center gap-1.5 text-xs text-destructive font-medium py-1"
-                  >
-                    <Trash2 size={13} />
-                    Delete Subject
-                  </button>
-                )}
+                {(() => {
+                  const hasProgress = subject.lectures.some(
+                    (l) => l.status === 'completed' || l.watchedMinutes > 0,
+                  )
+                  if (showDeleteConfirm === subject.id) {
+                    return (
+                      <div className="bg-muted rounded-xl p-3 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle size={14} className="text-muted-foreground shrink-0" />
+                          <p className="text-xs text-foreground font-medium">
+                            {hasProgress
+                              ? `Archive ${subject.name}? It will leave today's rotation but all progress and history are preserved.`
+                              : `Delete ${subject.name}? It has no progress yet.`}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              if (hasProgress) {
+                                dispatch({ type: 'ARCHIVE_SUBJECT', subjectId: subject.id })
+                              } else {
+                                deleteSubject(subject.id)
+                              }
+                              setShowDeleteConfirm(null)
+                              if (expandedId === subject.id) setExpandedId(null)
+                            }}
+                            className={cn(
+                              'flex-1 h-9 rounded-lg text-sm font-semibold',
+                              hasProgress
+                                ? 'bg-foreground text-background'
+                                : 'bg-destructive text-white',
+                            )}
+                          >
+                            {hasProgress ? 'Archive' : 'Delete'}
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(null)}
+                            className="flex-1 h-9 bg-card border border-border text-foreground rounded-lg text-sm font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <button
+                      onClick={() => setShowDeleteConfirm(subject.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 text-xs font-medium py-1',
+                        hasProgress ? 'text-muted-foreground' : 'text-destructive',
+                      )}
+                    >
+                      {hasProgress ? <Archive size={13} /> : <Trash2 size={13} />}
+                      {hasProgress ? 'Archive Subject' : 'Delete Subject'}
+                    </button>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -499,6 +525,40 @@ function SubjectManager() {
         <Plus size={16} />
         Add Subject
       </button>
+
+      {archivedSubjects.length > 0 && (
+        <div className="mt-2 pt-3 border-t border-border/60">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Archived ({archivedSubjects.length})
+          </p>
+          <div className="flex flex-col gap-2">
+            {archivedSubjects.map((subject) => (
+              <div
+                key={subject.id}
+                className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-muted/40 border border-border/60"
+              >
+                <SubjectIcon icon={subject.icon} color={subject.color} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{subject.name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {subject.lectures.filter((l) => l.status === 'completed').length}/
+                    {subject.lectures.length} lectures · history preserved
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    dispatch({ type: 'UNARCHIVE_SUBJECT', subjectId: subject.id })
+                  }
+                  className="flex items-center gap-1 text-xs font-medium text-primary px-2.5 py-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                >
+                  <RotateCcw size={12} />
+                  Restore
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
