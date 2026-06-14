@@ -202,8 +202,8 @@ function rankSubjects(subjects: Subject[], sessions: StudySessionRecord[]): Subj
     recentCount.set(s.subjectId, (recentCount.get(s.subjectId) ?? 0) + 1)
   }
 
-  const withPending = subjects.filter((s) =>
-    s.lectures.some((l) => l.status === 'pending'),
+  const withPending = subjects.filter(
+    (s) => !s.archived && s.lectures.some((l) => l.status === 'pending'),
   )
 
   const ranked: RankedSubject[] = withPending.map((subject) => {
@@ -218,8 +218,11 @@ function rankSubjects(subjects: Subject[], sessions: StudySessionRecord[]): Subj
     const recency = Math.min(6, daysSince * 0.6)
     // Neglect: penalise subjects that already got plenty of attention this fortnight
     const neglect = Math.max(0, 4 - recent)
+    // Starvation guarantee: any subject untouched for a week (or never) jumps
+    // to the front of the line, regardless of how small its workload is.
+    const starvationBoost = !last || daysSince >= 7 ? 5 : 0
 
-    return { subject, score: workload + recency + neglect }
+    return { subject, score: workload + recency + neglect + starvationBoost }
   })
 
   ranked.sort((a, b) => b.score - a.score)
