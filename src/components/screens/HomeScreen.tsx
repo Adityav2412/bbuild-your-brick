@@ -226,6 +226,7 @@ export default function HomeScreen() {
   const todayFocus = todaySchedule[0]
   const focusSubject = subjects.find((s) => s.id === todayFocus?.subjectId)
   const focusLecture = focusSubject?.lectures.find((l) => l.id === todayFocus?.lectureId)
+  const syllabus = getSyllabusProgress(subjects)
 
   const daysUntilExam = user.examDate
     ? Math.max(0, Math.ceil((new Date(user.examDate).getTime() - Date.now()) / 86400000))
