@@ -23,9 +23,8 @@ export default function WelcomeBackScreen() {
   }
 
   const activateRecovery = () => {
-    if (!user.recoveryMode) {
-      dispatch({ type: 'TOGGLE_RECOVERY_MODE' })
-    }
+    // Recovery mode is now automatic: the engine already eased today's
+    // capacity on hydration. We just take the student to the home screen.
     dispatch({ type: 'NAVIGATE', screen: 'home' })
   }
 
