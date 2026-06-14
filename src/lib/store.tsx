@@ -401,6 +401,7 @@ function reducer(state: AppState, action: Action): AppState {
         recoveryMode: false,
         progressionPaused: false,
         recentFeedback: [],
+        confidenceScore: 0,
         lastMentorNote: "A fresh foundation. We rebuild gently.",
       }
       const schedule = buildTodaySchedule(
