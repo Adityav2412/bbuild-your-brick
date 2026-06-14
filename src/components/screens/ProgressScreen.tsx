@@ -3,7 +3,7 @@
 import { BookOpen, TrendingUp, Sparkles, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
-import { formatMinutes, getHouseState, HOUSE_STAGES } from '@/lib/algorithm'
+import { formatMinutes, getHouseState, getSyllabusProgress, getHouseScale, HOUSE_STAGES } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
 
 // ─── House of Knowledge Timeline ──────────────────────────────────────────────
