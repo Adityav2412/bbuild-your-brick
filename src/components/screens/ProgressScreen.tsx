@@ -140,7 +140,7 @@ export default function ProgressScreen() {
       {/* Header */}
       <div className="px-5 pt-14 pb-4">
         <h1 className="font-bold text-4xl text-foreground tracking-tight">Progress</h1>
-        <p className="text-muted-foreground text-sm mt-1">Your restoration journey</p>
+        <p className="text-muted-foreground text-sm mt-1">Your home, brick by brick</p>
       </div>
 
       <div className="px-5 space-y-5">
