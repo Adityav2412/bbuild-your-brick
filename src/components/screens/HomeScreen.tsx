@@ -2,8 +2,16 @@
 
 import { Bell, Play, ChevronRight, Home as HomeIcon, BookOpen } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { getGreeting, getMentorMessage, getHouseState, formatMinutes } from '@/lib/algorithm'
+import {
+  getGreeting,
+  getMentorMessage,
+  getHouseState,
+  formatMinutes,
+  daysAway,
+  adjustCapacityForEnergy,
+} from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
+import type { EnergyLevel } from '@/lib/types'
 
 // ─── House of Knowledge Illustration ──────────────────────────────────────────
 // Each completed session places one brick. The home evolves visually as the
