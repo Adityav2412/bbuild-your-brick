@@ -142,7 +142,7 @@ function HouseCard() {
   const { user } = state
   if (!user) return null
 
-  const house = getHouseState(user.totalSessions)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore)
   const pct = Math.round(house.fraction * 100)
 
   return (
