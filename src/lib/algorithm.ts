@@ -70,10 +70,10 @@ export function applyFeedbackToCapacity(
   const updated = [...recentFeedback, newFeedback].slice(-8)
   const last2 = updated.slice(-2)
 
-  const floor = Math.max(10, Math.round(comfortableMinutes * 0.5))
+  const floor = Math.max(RHYTHM_FLOOR, Math.round(comfortableMinutes * 0.5))
   const baseFor10pct = capacity7DaysAgo ?? comfortableMinutes
-  // The hard ceiling is the smaller of (10%/week growth cap, user's chosen max)
-  const weeklyCeiling = Math.min(maxRhythm, Math.round(baseFor10pct * 1.1))
+  // The hard ceiling is the smaller of (10%/week growth cap, user's chosen max, 120)
+  const weeklyCeiling = Math.min(maxRhythm, RHYTHM_CEILING, Math.round(baseFor10pct * 1.1))
 
   let newCapacity = currentCapacity
   let note: string | null = null
