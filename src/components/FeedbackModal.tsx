@@ -74,7 +74,7 @@ export default function FeedbackModal() {
           How did that feel?
         </h2>
         <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-          Your answer helps adjust tomorrow&apos;s session length.
+          Your answer helps Brick tune tomorrow&apos;s rhythm.
         </p>
 
         <div className="flex flex-col gap-2.5 mb-6">

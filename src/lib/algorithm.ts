@@ -61,11 +61,11 @@ export function applyFeedbackToCapacity(
     newCapacity = currentCapacity // hold
   } else if (last3.length === 3 && last3.every((f) => f === 'easy')) {
     const target = Math.min(weeklyCeiling, currentCapacity + 5)
-    if (target > currentCapacity) note = 'Capacity grew by a few minutes. Quietly.'
+    if (target > currentCapacity) note = 'Your rhythm grew by a few minutes. Quietly.'
     newCapacity = target
   } else if (last3.length === 3 && last3.every((f) => f === 'comfortable')) {
     const target = Math.min(weeklyCeiling, currentCapacity + 2)
-    if (target > currentCapacity) note = 'A small, sustainable step forward.'
+    if (target > currentCapacity) note = 'A small, sustainable step in your rhythm.'
     newCapacity = target
   }
 

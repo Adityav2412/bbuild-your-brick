@@ -186,7 +186,7 @@ export default function ProgressScreen() {
             </div>
           </div>
 
-          {/* Capacity */}
+          {/* Current Rhythm */}
           <div className="bg-primary rounded-3xl p-4 flex flex-col gap-2">
             <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
               <TrendingUp size={18} className="text-primary-foreground" />
@@ -195,9 +195,12 @@ export default function ProgressScreen() {
               <p className="font-bold text-3xl text-primary-foreground tracking-tight">
                 {formatMinutes(user.currentCapacity)}
               </p>
-              <p className="text-xs text-primary-foreground/70 font-medium">Daily capacity</p>
+              <p className="text-xs text-primary-foreground/70 font-medium">
+                Current Rhythm · started at {formatMinutes(user.comfortableMinutes)}
+              </p>
             </div>
           </div>
+
         </div>
 
         {/* Weekly chart */}

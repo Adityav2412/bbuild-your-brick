@@ -331,13 +331,14 @@ export default function HomeScreen() {
           </div>
         )}
 
-        {/* Capacity pill */}
+        {/* Current Rhythm pill */}
         <div className="flex items-center justify-between px-4 py-3 bg-card rounded-2xl border border-border">
-          <p className="text-sm text-muted-foreground">Current study capacity</p>
+          <p className="text-sm text-muted-foreground">Current Rhythm</p>
           <p className="text-sm font-semibold text-foreground">
-            {formatMinutes(user.currentCapacity)}/day
+            {formatMinutes(user.currentCapacity)}
           </p>
         </div>
+
 
         {/* Start Session button */}
         {todayFocus && (
