@@ -108,7 +108,7 @@ export default function ProgressScreen() {
   if (!user) return null
 
   const syllabus = getSyllabusProgress(subjects)
-  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus, { fraction: user.houseProgressFloor ?? 0, totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes })
   const scale = getHouseScale(syllabus.totalMinutes)
 
   // Subject-level progress

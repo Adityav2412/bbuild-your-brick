@@ -146,7 +146,7 @@ function HouseCard() {
   if (!user) return null
 
   const syllabus = getSyllabusProgress(subjects)
-  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus, { fraction: user.houseProgressFloor ?? 0, totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes })
   const scale = getHouseScale(syllabus.totalMinutes)
   const pct = Math.round(house.fraction * 100)
 
