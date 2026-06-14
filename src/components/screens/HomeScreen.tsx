@@ -199,7 +199,24 @@ export default function HomeScreen() {
   if (!user) return null
 
   const greeting = getGreeting()
-  const mentorMessage = user.lastMentorNote || getMentorMessage(user.totalSessions)
+  const today = new Date().toISOString().split('T')[0]
+  const energySetToday = user.energyDate === today
+  const todayEnergy: EnergyLevel | null = energySetToday ? (user.todayEnergy ?? null) : null
+
+  const mentorMessage =
+    user.lastMentorNote ||
+    getMentorMessage({
+      totalSessions: user.totalSessions,
+      recentFeedback: user.recentFeedback ?? [],
+      daysSinceLastStudy: daysAway(user.lastStudyDate),
+      recoveryMode: user.recoveryMode,
+      progressionPaused: user.progressionPaused,
+      energy: todayEnergy,
+    })
+
+  const effectiveRhythm = adjustCapacityForEnergy(user.currentCapacity, todayEnergy)
+
+  const setEnergy = (e: EnergyLevel) => dispatch({ type: 'SET_ENERGY', energy: e })
 
   const todayFocus = todaySchedule[0]
   const focusSubject = subjects.find((s) => s.id === todayFocus?.subjectId)
