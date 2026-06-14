@@ -298,7 +298,12 @@ export interface MentorContext {
   energy?: EnergyLevel | null
   /** True when the most recent feedback grew the rhythm */
   rhythmGrew?: boolean
+  /** When set, mentor will deliver a one-time stage-specific milestone line. */
+  houseStageKey?: HouseStage['key']
+  /** True only on the day the user just crossed into a new house stage. */
+  houseStageJustChanged?: boolean
 }
+
 
 const GENERAL_MESSAGES = [
   "Focus on today\u2019s brick.",
