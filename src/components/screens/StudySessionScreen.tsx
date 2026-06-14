@@ -55,6 +55,28 @@ export default function StudySessionScreen() {
     }
   }, [activeSession])
 
+  // ─── Anti-cheat: auto-pause when the user leaves the app ─────────────
+  // If the tab is hidden, the window loses focus, or the device sleeps,
+  // we pause the timer so only active study time counts toward progress.
+  useEffect(() => {
+    if (!activeSession) return
+    const pauseIfRunning = () => {
+      if (!state.activeSession || state.activeSession.pausedAt !== null) return
+      dispatch({ type: 'PAUSE_SESSION' })
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') pauseIfRunning()
+    }
+    window.addEventListener('blur', pauseIfRunning)
+    window.addEventListener('pagehide', pauseIfRunning)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('blur', pauseIfRunning)
+      window.removeEventListener('pagehide', pauseIfRunning)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [activeSession, state.activeSession, dispatch])
+
   if (!activeSession || !subject || !lecture) return null
 
   const targetSeconds = activeSession.targetMinutes * 60
