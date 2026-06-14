@@ -23,6 +23,8 @@ import {
   computeEffortScore,
   computeEnergyHonesty,
   getSyllabusProgress,
+  getHouseState,
+  getMentorMessage,
   SUBJECT_COLORS,
   SUBJECT_ICONS,
 } from './algorithm'
