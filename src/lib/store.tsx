@@ -16,6 +16,8 @@ import {
   buildTodaySchedule,
   applyFeedbackToCapacity,
   isLongGap,
+  daysAway,
+  easedCapacityAfterGap,
   SUBJECT_COLORS,
   SUBJECT_ICONS,
 } from './algorithm'
