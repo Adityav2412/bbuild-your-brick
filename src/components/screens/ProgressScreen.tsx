@@ -203,14 +203,17 @@ export default function ProgressScreen() {
         <div className="bg-card rounded-3xl border border-border p-5">
           <div className="flex items-center justify-between mb-1">
             <h3 className="font-semibold text-base text-foreground tracking-tight">
-              House of Knowledge
+              Your {scale.label} of Knowledge
             </h3>
             <span className="text-xs text-primary font-semibold">
               {Math.round(house.fraction * 100)}%
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mb-5">
+          <p className="text-xs text-muted-foreground mb-1">
             {house.stage.label} — {house.description}
+          </p>
+          <p className="text-[11px] text-muted-foreground/70 mb-5">
+            {formatMinutes(syllabus.completedMinutes)} of {formatMinutes(syllabus.totalMinutes)} studied
           </p>
 
           <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-5">
