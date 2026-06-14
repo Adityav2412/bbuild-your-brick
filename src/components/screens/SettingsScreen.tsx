@@ -210,7 +210,7 @@ function CapacityCard() {
   return (
     <div className="bg-card rounded-3xl border border-border px-4 py-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-foreground">Current Rhythm</p>
+        <p className="text-sm font-semibold text-foreground">Today&apos;s Rhythm</p>
         <span className="text-sm font-bold text-primary">{formatMinutes(user.currentCapacity)}</span>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
