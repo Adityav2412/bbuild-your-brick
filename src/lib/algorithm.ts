@@ -51,22 +51,29 @@ export const CONFIDENCE_DELTA: Record<SessionFeedback, number> = {
   'couldnt-finish': -3,
 }
 
+/** Absolute hard ceiling for any rhythm calculation, anywhere. */
+export const RHYTHM_CEILING = 120
+/** Absolute hard floor. The rhythm never drops below this. */
+export const RHYTHM_FLOOR = 10
+
 export function applyFeedbackToCapacity(
   currentCapacity: number,
   comfortableMinutes: number,
   recentFeedback: SessionFeedback[],
   newFeedback: SessionFeedback,
   capacity7DaysAgo: number | null = null,
-  maxRhythm: number = 240,
+  maxRhythm: number = RHYTHM_CEILING,
   confidenceScore: number = 0,
 ): CapacityResult {
+  // Hard global ceiling — never exceed 120 minutes regardless of user setting.
+  maxRhythm = Math.min(maxRhythm, RHYTHM_CEILING)
   const updated = [...recentFeedback, newFeedback].slice(-8)
   const last2 = updated.slice(-2)
 
-  const floor = Math.max(10, Math.round(comfortableMinutes * 0.5))
+  const floor = Math.max(RHYTHM_FLOOR, Math.round(comfortableMinutes * 0.5))
   const baseFor10pct = capacity7DaysAgo ?? comfortableMinutes
-  // The hard ceiling is the smaller of (10%/week growth cap, user's chosen max)
-  const weeklyCeiling = Math.min(maxRhythm, Math.round(baseFor10pct * 1.1))
+  // The hard ceiling is the smaller of (10%/week growth cap, user's chosen max, 120)
+  const weeklyCeiling = Math.min(maxRhythm, RHYTHM_CEILING, Math.round(baseFor10pct * 1.1))
 
   let newCapacity = currentCapacity
   let note: string | null = null
@@ -291,7 +298,12 @@ export interface MentorContext {
   energy?: EnergyLevel | null
   /** True when the most recent feedback grew the rhythm */
   rhythmGrew?: boolean
+  /** When set, mentor will deliver a one-time stage-specific milestone line. */
+  houseStageKey?: HouseStage['key']
+  /** True only on the day the user just crossed into a new house stage. */
+  houseStageJustChanged?: boolean
 }
+
 
 const GENERAL_MESSAGES = [
   "Focus on today\u2019s brick.",
@@ -349,12 +361,28 @@ const MENTOR_POOLS = {
     'You\u2019re moving well. Keep the same calm pace.',
     'Easy days are gifts. Receive them.',
   ],
+  houseMilestone: [
+    'A new stage of your home is taking shape.',
+    'Look up — the home has changed today.',
+    'The work shows. Quietly, the home grew.',
+  ],
   general: GENERAL_MESSAGES,
 }
 
 function pickFromPool(pool: string[], seed: number): string {
   if (pool.length === 0) return ''
   return pool[Math.abs(seed) % pool.length]
+}
+
+// Stage-specific mentor lines. Spoken once when the user just crossed into a new stage.
+const STAGE_LINES: Partial<Record<HouseStage['key'], string>> = {
+  'foundation-complete': 'The foundation is set. The home has its footing.',
+  'walls-rising':        'One more session and the first wall will rise higher.',
+  'window':              'A window appeared. Light enters the home.',
+  'door':                'A door now opens. The home is yours to step into.',
+  'roof-framework':      'The roof beams are up. Shelter is forming overhead.',
+  'roof-complete':       'The roof is complete. The home is sealed and quiet.',
+  'finished-home':       'The home is finished. Built slowly. Built by you.',
 }
 
 export function getMentorMessage(
@@ -368,6 +396,13 @@ export function getMentorMessage(
   // Seed varies by day so messages quietly rotate without feeling random.
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
   const seed = dayOfYear + ctx.totalSessions
+
+  // House milestone takes priority — it's a one-time, contextual celebration.
+  if (ctx.houseStageJustChanged && ctx.houseStageKey) {
+    const line = STAGE_LINES[ctx.houseStageKey]
+    if (line) return line
+    return pickFromPool(MENTOR_POOLS.houseMilestone, seed)
+  }
 
   if (ctx.recoveryMode || ctx.daysSinceLastStudy >= 15) return pickFromPool(MENTOR_POOLS.recoveryLong, seed)
   if (ctx.daysSinceLastStudy >= 8) return pickFromPool(MENTOR_POOLS.recoveryMid, seed)
@@ -399,12 +434,13 @@ export interface HouseStage {
   index: number
   key:
     | 'foundation'
-    | 'walls'
-    | 'windows'
+    | 'foundation-complete'
+    | 'walls-rising'
+    | 'window'
     | 'door'
-    | 'roof'
-    | 'garden'
-    | 'complete'
+    | 'roof-framework'
+    | 'roof-complete'
+    | 'finished-home'
     | 'study-room'
     | 'library'
     | 'reading-corner'
@@ -419,20 +455,30 @@ export interface HouseStage {
   isExpansion?: boolean
 }
 
+// The 8-stage construction journey. Each stage is a visibly different home.
+//   0 Foundation             — ground laid
+//   1 Foundation Complete    — full base poured
+//   2 Walls Rising           — partial walls of brick
+//   3 Window Appears         — first window cut in
+//   4 Door Appears           — entryway formed
+//   5 Roof Framework         — beams overhead
+//   6 Roof Complete          — sealed shelter
+//   7 Finished Home          — windows lit, garden, done
 export const HOUSE_STAGES: HouseStage[] = [
-  { index: 0, key: 'foundation',       label: 'Foundation',       description: 'The ground is set. Every home begins here.',     bricksRequired: 0,   fractionRequired: 0    },
-  { index: 1, key: 'walls',            label: 'Walls',            description: 'The walls rise, brick by brick.',                bricksRequired: 11,  fractionRequired: 0.10 },
-  { index: 2, key: 'windows',          label: 'Windows & Door',   description: 'Light enters. A way in begins to form.',         bricksRequired: 31,  fractionRequired: 0.25 },
-  { index: 3, key: 'door',             label: 'Door',             description: 'A threshold. The home becomes yours.',           bricksRequired: 41,  fractionRequired: 0.40 },
-  { index: 4, key: 'roof',             label: 'Roof',             description: 'Shelter. Quiet protection overhead.',            bricksRequired: 51,  fractionRequired: 0.55 },
-  { index: 5, key: 'garden',           label: 'Garden',           description: 'Life grows around the home you built.',          bricksRequired: 71,  fractionRequired: 0.70 },
-  { index: 6, key: 'complete',         label: 'Completed Home',   description: 'Built slowly. Built well. Built by you.',        bricksRequired: 91,  fractionRequired: 0.90 },
+  { index: 0, key: 'foundation',          label: 'Foundation',          description: 'The ground is set. Every home begins here.',     bricksRequired: 0,   fractionRequired: 0    },
+  { index: 1, key: 'foundation-complete', label: 'Foundation Complete', description: 'The base is poured. The home has its footing.',  bricksRequired: 3,   fractionRequired: 0.05 },
+  { index: 2, key: 'walls-rising',        label: 'Walls Rising',        description: 'Brick by brick, the walls take shape.',          bricksRequired: 8,   fractionRequired: 0.15 },
+  { index: 3, key: 'window',              label: 'Window Appears',      description: 'Light enters. The home begins to breathe.',      bricksRequired: 18,  fractionRequired: 0.30 },
+  { index: 4, key: 'door',                label: 'Door Appears',        description: 'A threshold. The home becomes yours.',           bricksRequired: 30,  fractionRequired: 0.45 },
+  { index: 5, key: 'roof-framework',      label: 'Roof Framework',      description: 'Beams overhead. Shelter is on its way.',         bricksRequired: 45,  fractionRequired: 0.60 },
+  { index: 6, key: 'roof-complete',       label: 'Roof Complete',       description: 'Sealed and quiet. The home is whole.',           bricksRequired: 65,  fractionRequired: 0.80 },
+  { index: 7, key: 'finished-home',       label: 'Finished Home',       description: 'Built slowly. Built well. Built by you.',        bricksRequired: 90,  fractionRequired: 1.00 },
   // Long-term expansions — the journey continues for years.
-  { index: 7, key: 'study-room',       label: 'Study Room',       description: 'A quiet room for deeper focus.',                 bricksRequired: 130, fractionRequired: 1.05, isExpansion: true },
-  { index: 8, key: 'library',          label: 'Library',          description: 'Walls of books. A mind that lasts.',             bricksRequired: 180, fractionRequired: 1.15, isExpansion: true },
-  { index: 9, key: 'reading-corner',   label: 'Reading Corner',   description: 'A soft chair by the window.',                    bricksRequired: 240, fractionRequired: 1.25, isExpansion: true },
-  { index: 10, key: 'garden-expansion', label: 'Garden Expansion', description: 'The garden widens, season after season.',       bricksRequired: 320, fractionRequired: 1.40, isExpansion: true },
-  { index: 11, key: 'workshop',         label: 'Workshop',         description: 'A place to build, beyond the home itself.',      bricksRequired: 420, fractionRequired: 1.60, isExpansion: true },
+  { index: 8,  key: 'study-room',       label: 'Study Room',       description: 'A quiet room for deeper focus.',                 bricksRequired: 130, fractionRequired: 1.10, isExpansion: true },
+  { index: 9,  key: 'library',          label: 'Library',          description: 'Walls of books. A mind that lasts.',             bricksRequired: 180, fractionRequired: 1.20, isExpansion: true },
+  { index: 10, key: 'reading-corner',   label: 'Reading Corner',   description: 'A soft chair by the window.',                    bricksRequired: 240, fractionRequired: 1.30, isExpansion: true },
+  { index: 11, key: 'garden-expansion', label: 'Garden Expansion', description: 'The garden widens, season after season.',       bricksRequired: 320, fractionRequired: 1.45, isExpansion: true },
+  { index: 12, key: 'workshop',         label: 'Workshop',         description: 'A place to build, beyond the home itself.',      bricksRequired: 420, fractionRequired: 1.65, isExpansion: true },
 ]
 
 // ─── House Scale ─────────────────────────────────────────────────────────────
@@ -569,7 +615,7 @@ export function getHouseState(
     withinFromBricks = Math.min(stageSpan, Math.max(withinFromBricks, effortScore - baseEffort))
   }
   const stageFraction = stageSpan > 0 ? Math.min(1, withinFromBricks / stageSpan) : 1
-  const totalBricksForFull = HOUSE_STAGES[6].bricksRequired
+  const totalBricksForFull = HOUSE_STAGES[7].bricksRequired
   const fraction = Math.min(1, bricks / totalBricksForFull)
 
   return {
