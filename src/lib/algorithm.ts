@@ -51,15 +51,22 @@ export const CONFIDENCE_DELTA: Record<SessionFeedback, number> = {
   'couldnt-finish': -3,
 }
 
+/** Absolute hard ceiling for any rhythm calculation, anywhere. */
+export const RHYTHM_CEILING = 120
+/** Absolute hard floor. The rhythm never drops below this. */
+export const RHYTHM_FLOOR = 10
+
 export function applyFeedbackToCapacity(
   currentCapacity: number,
   comfortableMinutes: number,
   recentFeedback: SessionFeedback[],
   newFeedback: SessionFeedback,
   capacity7DaysAgo: number | null = null,
-  maxRhythm: number = 240,
+  maxRhythm: number = RHYTHM_CEILING,
   confidenceScore: number = 0,
 ): CapacityResult {
+  // Hard global ceiling — never exceed 120 minutes regardless of user setting.
+  maxRhythm = Math.min(maxRhythm, RHYTHM_CEILING)
   const updated = [...recentFeedback, newFeedback].slice(-8)
   const last2 = updated.slice(-2)
 
