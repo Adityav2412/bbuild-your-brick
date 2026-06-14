@@ -11,13 +11,16 @@ import type {
   SubjectColor,
   SubjectIcon,
   SessionFeedback,
+  EnergyLevel,
 } from './types'
 import {
   buildTodaySchedule,
   applyFeedbackToCapacity,
   isLongGap,
   daysAway,
-  easedCapacityAfterGap,
+  adjustCapacityForEnergy,
+  applyMissedDayRecovery,
+  computeEffortScore,
   SUBJECT_COLORS,
   SUBJECT_ICONS,
 } from './algorithm'
@@ -40,6 +43,7 @@ export interface AppState {
     examName: string
     examDate: string
     comfortableMinutes: number
+    maxRhythm: number
   }
 }
 
@@ -60,6 +64,8 @@ export type Action =
   | { type: 'END_SESSION'; actualSeconds: number; completed: boolean }
   | { type: 'SKIP_SESSION' }
   | { type: 'SUBMIT_FEEDBACK'; sessionId: string; feedback: SessionFeedback }
+  | { type: 'SET_ENERGY'; energy: EnergyLevel }
+  | { type: 'EXIT_RECOVERY'; comfortableMinutes: number }
   | { type: 'UPDATE_USER'; updates: Partial<User> }
   | { type: 'UPDATE_AVATAR'; avatarUrl: string | null }
   | { type: 'RESET_APP' }
@@ -73,6 +79,13 @@ function todayString(): string {
 
 function makeId(): string {
   return Math.random().toString(36).slice(2)
+}
+
+/** Computes today's effective rhythm by applying the daily energy modifier. */
+function effectiveCapacity(user: User): number {
+  const isToday = user.energyDate === todayString()
+  const energy = isToday ? user.todayEnergy ?? null : null
+  return adjustCapacityForEnergy(user.currentCapacity, energy)
 }
 
 // ─── Initial State ────────────────────────────────────────────────────────────
@@ -92,6 +105,7 @@ const initialState: AppState = {
     examName: '',
     examDate: '',
     comfortableMinutes: 20,
+    maxRhythm: 120,
   },
 }
 
@@ -123,6 +137,7 @@ function reducer(state: AppState, action: Action): AppState {
         examDate: draft.examDate,
         comfortableMinutes: draft.comfortableMinutes,
         currentCapacity: draft.comfortableMinutes,
+        maxRhythm: Math.max(draft.maxRhythm, draft.comfortableMinutes),
         lastStudyDate: null,
         onboardingComplete: true,
         totalSessions: 0,
@@ -130,8 +145,12 @@ function reducer(state: AppState, action: Action): AppState {
         joinDate: todayString(),
         avatarUrl: null,
         recentFeedback: [],
+        todayEnergy: null,
+        energyDate: null,
+        recoveryMode: false,
+        houseEffortScore: 0,
       }
-      const schedule = buildTodaySchedule(action.subjects, user.currentCapacity, state.sessions)
+      const schedule = buildTodaySchedule(action.subjects, effectiveCapacity(user), state.sessions)
       return {
         ...state,
         user,
@@ -150,7 +169,7 @@ function reducer(state: AppState, action: Action): AppState {
         else merged.push(sub)
       }
       const schedule = state.user
-        ? buildTodaySchedule(merged, state.user.currentCapacity, state.sessions)
+        ? buildTodaySchedule(merged, effectiveCapacity(state.user), state.sessions)
         : state.todaySchedule
       return { ...state, subjects: merged, todaySchedule: schedule }
     }
@@ -160,7 +179,7 @@ function reducer(state: AppState, action: Action): AppState {
         s.id === action.subject.id ? action.subject : s
       )
       const schedule = state.user
-        ? buildTodaySchedule(subjects, state.user.currentCapacity, state.sessions)
+        ? buildTodaySchedule(subjects, effectiveCapacity(state.user), state.sessions)
         : state.todaySchedule
       return { ...state, subjects, todaySchedule: schedule }
     }
@@ -168,7 +187,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'DELETE_SUBJECT': {
       const subjects = state.subjects.filter((s) => s.id !== action.subjectId)
       const schedule = state.user
-        ? buildTodaySchedule(subjects, state.user.currentCapacity, state.sessions)
+        ? buildTodaySchedule(subjects, effectiveCapacity(state.user), state.sessions)
         : state.todaySchedule
       return { ...state, subjects, todaySchedule: schedule }
     }
@@ -240,10 +259,10 @@ function reducer(state: AppState, action: Action): AppState {
           lectures: s.lectures.map((l) => {
             if (l.id !== lectureId) return l
             const newWatched = l.watchedMinutes + actualMinutes
-            // Only mark a lecture "completed" if the brick was earned AND the
-            // lecture itself has actually been fully watched. A 90% session of
-            // a 60-minute lecture should not retire the lecture.
-            const isDone = isBrick && newWatched >= l.durationMinutes
+            // Only mark a lecture "completed" once it has actually been fully
+            // watched. A partial session NEVER retires a lecture; the lecture
+            // simply tracks Watched / Remaining for the next session.
+            const isDone = newWatched >= l.durationMinutes
             return {
               ...l,
               watchedMinutes: Math.min(newWatched, l.durationMinutes),
@@ -254,12 +273,17 @@ function reducer(state: AppState, action: Action): AppState {
         }
       })
 
+      // House effort: each brick = 1 visible brick, but longer sessions add a
+      // tiny internal bonus (up to +0.5 per session) so the house grows in a
+      // way that quietly reflects effort.
+      const effortBonus = isBrick ? 1 + Math.min(0.5, actualMinutes / 60) : 0
+
       const updatedUser: User = {
         ...state.user,
         lastStudyDate: today,
-        // Bricks == completed sessions. Only count toward totals on full credit.
         totalSessions: state.user.totalSessions + (isBrick ? 1 : 0),
         totalMinutes: state.user.totalMinutes + actualMinutes,
+        houseEffortScore: (state.user.houseEffortScore ?? 0) + effortBonus,
       }
 
       const sessionId = makeId()
@@ -276,7 +300,11 @@ function reducer(state: AppState, action: Action): AppState {
         feedback: null,
       }
 
-      const schedule = buildTodaySchedule(updatedSubjects, updatedUser.currentCapacity, state.sessions)
+      const schedule = buildTodaySchedule(
+        updatedSubjects,
+        effectiveCapacity(updatedUser),
+        state.sessions,
+      )
 
       return {
         ...state,
@@ -285,8 +313,6 @@ function reducer(state: AppState, action: Action): AppState {
         subjects: updatedSubjects,
         sessions: [...state.sessions, newRecord],
         todaySchedule: schedule,
-        // Feedback (and therefore capacity progression) is only triggered on a
-        // full-credit session.
         pendingFeedback: isBrick ? { sessionId } : null,
         screen: 'home',
       }
@@ -298,7 +324,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SUBMIT_FEEDBACK': {
       if (!state.user) return { ...state, pendingFeedback: null }
 
-      // Find capacity from ~7 days ago for the 10%/week growth cap
+      // 10%/week growth cap relative to the rhythm from ~7 days ago
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
       const history = state.user.capacityHistory ?? []
@@ -313,6 +339,7 @@ function reducer(state: AppState, action: Action): AppState {
         state.user.recentFeedback,
         action.feedback,
         capacity7DaysAgo,
+        state.user.maxRhythm,
       )
 
       const today = todayString()
@@ -332,7 +359,11 @@ function reducer(state: AppState, action: Action): AppState {
       const updatedSessions = state.sessions.map((s) =>
         s.id === action.sessionId ? { ...s, feedback: action.feedback } : s
       )
-      const schedule = buildTodaySchedule(state.subjects, result.newCapacity, updatedSessions)
+      const schedule = buildTodaySchedule(
+        state.subjects,
+        effectiveCapacity(updatedUser),
+        updatedSessions,
+      )
       return {
         ...state,
         user: updatedUser,
@@ -340,6 +371,41 @@ function reducer(state: AppState, action: Action): AppState {
         todaySchedule: schedule,
         pendingFeedback: null,
       }
+    }
+
+    case 'SET_ENERGY': {
+      if (!state.user) return state
+      const updatedUser: User = {
+        ...state.user,
+        todayEnergy: action.energy,
+        energyDate: todayString(),
+      }
+      const schedule = buildTodaySchedule(
+        state.subjects,
+        effectiveCapacity(updatedUser),
+        state.sessions,
+      )
+      return { ...state, user: updatedUser, todaySchedule: schedule }
+    }
+
+    case 'EXIT_RECOVERY': {
+      if (!state.user) return state
+      const newComfortable = Math.max(5, action.comfortableMinutes)
+      const updatedUser: User = {
+        ...state.user,
+        comfortableMinutes: newComfortable,
+        currentCapacity: newComfortable,
+        recoveryMode: false,
+        progressionPaused: false,
+        recentFeedback: [],
+        lastMentorNote: "A fresh foundation. We rebuild gently.",
+      }
+      const schedule = buildTodaySchedule(
+        state.subjects,
+        effectiveCapacity(updatedUser),
+        state.sessions,
+      )
+      return { ...state, user: updatedUser, todaySchedule: schedule, screen: 'home' }
     }
 
     case 'UPDATE_USER':
@@ -382,32 +448,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (stored) {
         const parsed = JSON.parse(stored) as AppState
         if (parsed.user?.onboardingComplete) {
-          // Backfill missing fields for users coming from older versions
+          // Backfill missing fields for users from older versions
           if (!parsed.user.recentFeedback) parsed.user.recentFeedback = []
           if (parsed.user.avatarUrl === undefined) parsed.user.avatarUrl = null
           if (!parsed.user.capacityHistory) parsed.user.capacityHistory = []
           if (parsed.user.progressionPaused === undefined) parsed.user.progressionPaused = false
           if (parsed.user.lastMentorNote === undefined) parsed.user.lastMentorNote = null
+          if (parsed.user.maxRhythm === undefined) parsed.user.maxRhythm = 120
+          if (parsed.user.todayEnergy === undefined) parsed.user.todayEnergy = null
+          if (parsed.user.energyDate === undefined) parsed.user.energyDate = null
+          if (parsed.user.recoveryMode === undefined) parsed.user.recoveryMode = false
+          if (parsed.user.houseEffortScore === undefined) {
+            parsed.user.houseEffortScore = computeEffortScore(parsed.sessions ?? [])
+          }
 
-          // Gentle recovery: if the student was away for a few days, ease
-          // today's capacity. Never penalise, never reset.
+          // Missed-day recovery — Brick eases the workload, never punishes.
           const away = daysAway(parsed.user.lastStudyDate)
-          if (away >= 3) {
-            const eased = easedCapacityAfterGap(
+          let startScreen: Screen = 'home'
+          if (away >= 1) {
+            const rec = applyMissedDayRecovery(
               parsed.user.currentCapacity,
               parsed.user.comfortableMinutes,
               away,
             )
-            parsed.user.currentCapacity = eased
-            parsed.user.lastMentorNote = "Welcome back. Let's start gently."
+            parsed.user.currentCapacity = rec.newCapacity
+            parsed.user.recoveryMode = rec.recoveryMode
+            if (rec.mentorNote) parsed.user.lastMentorNote = rec.mentorNote
+            if (rec.needsRecoveryOnboarding) {
+              startScreen = 'recovery'
+            } else if (isLongGap(parsed.user.lastStudyDate)) {
+              startScreen = 'welcome-back'
+            }
+          }
+
+          // Clear stale energy from a previous day
+          if (parsed.user.energyDate && parsed.user.energyDate !== todayString()) {
+            parsed.user.todayEnergy = null
+            parsed.user.energyDate = null
           }
 
           const schedule = buildTodaySchedule(
             parsed.subjects ?? [],
-            parsed.user.currentCapacity,
+            effectiveCapacity(parsed.user),
             parsed.sessions ?? [],
           )
-          const longGap = isLongGap(parsed.user.lastStudyDate)
           dispatch({
             type: 'HYDRATE',
             state: {
@@ -415,7 +499,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               todaySchedule: schedule,
               activeSession: null,
               pendingFeedback: null,
-              screen: longGap ? 'welcome-back' : 'home',
+              screen: startScreen,
             },
           })
         } else {
@@ -501,13 +585,11 @@ export function makeSampleSubjects(): Subject[] {
       ],
     },
   ]
-
-
   return data.map((s, i) => ({
     id: makeId(),
     name: s.name,
-    color: colors[i] as SubjectColor,
-    icon: icons[i] as SubjectIcon,
+    color: colors[i % colors.length],
+    icon: icons[i % icons.length],
     lectures: s.lectures.map((l) => ({
       id: makeId(),
       name: l.name,
