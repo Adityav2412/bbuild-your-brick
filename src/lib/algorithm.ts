@@ -587,7 +587,7 @@ export function getHouseState(
     withinFromBricks = Math.min(stageSpan, Math.max(withinFromBricks, effortScore - baseEffort))
   }
   const stageFraction = stageSpan > 0 ? Math.min(1, withinFromBricks / stageSpan) : 1
-  const totalBricksForFull = HOUSE_STAGES[6].bricksRequired
+  const totalBricksForFull = HOUSE_STAGES[7].bricksRequired
   const fraction = Math.min(1, bricks / totalBricksForFull)
 
   return {
