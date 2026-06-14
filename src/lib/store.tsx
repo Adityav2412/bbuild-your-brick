@@ -21,6 +21,8 @@ import {
   adjustCapacityForEnergy,
   applyMissedDayRecovery,
   computeEffortScore,
+  computeEnergyHonesty,
+  getSyllabusProgress,
   SUBJECT_COLORS,
   SUBJECT_ICONS,
 } from './algorithm'
@@ -58,6 +60,8 @@ export type Action =
   | { type: 'ADD_SUBJECTS'; subjects: Subject[] }
   | { type: 'UPDATE_SUBJECT'; subject: Subject }
   | { type: 'DELETE_SUBJECT'; subjectId: string }
+  | { type: 'ARCHIVE_SUBJECT'; subjectId: string }
+  | { type: 'UNARCHIVE_SUBJECT'; subjectId: string }
   | { type: 'START_SESSION'; subjectId: string; lectureId: string; targetMinutes: number }
   | { type: 'PAUSE_SESSION' }
   | { type: 'RESUME_SESSION' }
@@ -85,7 +89,12 @@ function makeId(): string {
 function effectiveCapacity(user: User): number {
   const isToday = user.energyDate === todayString()
   const energy = isToday ? user.todayEnergy ?? null : null
-  return adjustCapacityForEnergy(user.currentCapacity, energy)
+  const honesty = computeEnergyHonesty(user.energyHistory)
+  return adjustCapacityForEnergy(user.currentCapacity, energy, honesty)
+}
+
+function subjectHasProgress(sub: Subject): boolean {
+  return sub.lectures.some((l) => l.status === 'completed' || l.watchedMinutes > 0)
 }
 
 // ─── Initial State ────────────────────────────────────────────────────────────
@@ -150,6 +159,9 @@ function reducer(state: AppState, action: Action): AppState {
         energyDate: null,
         recoveryMode: false,
         houseEffortScore: 0,
+        houseProgressFloor: 0,
+        houseFloorTotalMinutes: 0,
+        energyHistory: [],
       }
       const schedule = buildTodaySchedule(action.subjects, effectiveCapacity(user), state.sessions)
       return {
@@ -186,7 +198,35 @@ function reducer(state: AppState, action: Action): AppState {
     }
 
     case 'DELETE_SUBJECT': {
-      const subjects = state.subjects.filter((s) => s.id !== action.subjectId)
+      // Subjects with progress cannot be permanently deleted — they are archived
+      // to preserve history, completed minutes, and house progress integrity.
+      const target = state.subjects.find((s) => s.id === action.subjectId)
+      const hasProgress = target ? subjectHasProgress(target) : false
+      const subjects = hasProgress
+        ? state.subjects.map((s) =>
+            s.id === action.subjectId ? { ...s, archived: true } : s,
+          )
+        : state.subjects.filter((s) => s.id !== action.subjectId)
+      const schedule = state.user
+        ? buildTodaySchedule(subjects, effectiveCapacity(state.user), state.sessions)
+        : state.todaySchedule
+      return { ...state, subjects, todaySchedule: schedule }
+    }
+
+    case 'ARCHIVE_SUBJECT': {
+      const subjects = state.subjects.map((s) =>
+        s.id === action.subjectId ? { ...s, archived: true } : s,
+      )
+      const schedule = state.user
+        ? buildTodaySchedule(subjects, effectiveCapacity(state.user), state.sessions)
+        : state.todaySchedule
+      return { ...state, subjects, todaySchedule: schedule }
+    }
+
+    case 'UNARCHIVE_SUBJECT': {
+      const subjects = state.subjects.map((s) =>
+        s.id === action.subjectId ? { ...s, archived: false } : s,
+      )
       const schedule = state.user
         ? buildTodaySchedule(subjects, effectiveCapacity(state.user), state.sessions)
         : state.todaySchedule
@@ -279,12 +319,32 @@ function reducer(state: AppState, action: Action): AppState {
       // way that quietly reflects effort.
       const effortBonus = isBrick ? 1 + Math.min(0.5, actualMinutes / 60) : 0
 
+      // Update house progress floor — visible house never decreases.
+      const newSyll = getSyllabusProgress(updatedSubjects)
+      const newFraction = newSyll.totalMinutes > 0 ? newSyll.completedMinutes / newSyll.totalMinutes : 0
+      const prevFloor = state.user.houseProgressFloor ?? 0
+      const nextFloor = Math.max(prevFloor, newFraction)
+      const nextFloorTotal = nextFloor > prevFloor
+        ? newSyll.totalMinutes
+        : state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes
+
+      // Energy honesty tracking — record today's completion against today's energy report.
+      const todayEnergyEntry =
+        state.user.todayEnergy && state.user.energyDate === today
+          ? [{ date: today, energy: state.user.todayEnergy, completionPct: Math.min(1, completionPct) }]
+          : []
+      const prevHistory = state.user.energyHistory ?? []
+      const nextEnergyHistory = [...prevHistory, ...todayEnergyEntry].slice(-30)
+
       const updatedUser: User = {
         ...state.user,
         lastStudyDate: today,
         totalSessions: state.user.totalSessions + (isBrick ? 1 : 0),
         totalMinutes: state.user.totalMinutes + actualMinutes,
         houseEffortScore: (state.user.houseEffortScore ?? 0) + effortBonus,
+        houseProgressFloor: nextFloor,
+        houseFloorTotalMinutes: nextFloorTotal,
+        energyHistory: nextEnergyHistory,
       }
 
       const sessionId = makeId()
@@ -466,6 +526,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (parsed.user.houseEffortScore === undefined) {
             parsed.user.houseEffortScore = computeEffortScore(parsed.sessions ?? [])
           }
+          if (parsed.user.energyHistory === undefined) parsed.user.energyHistory = []
+          if (parsed.user.houseProgressFloor === undefined) {
+            // Initialise the floor at the current syllabus completion so historic
+            // progress is preserved going forward.
+            const syll = getSyllabusProgress(parsed.subjects ?? [])
+            parsed.user.houseProgressFloor =
+              syll.totalMinutes > 0 ? syll.completedMinutes / syll.totalMinutes : 0
+            parsed.user.houseFloorTotalMinutes = syll.totalMinutes
+          }
 
           // Missed-day recovery — Brick eases the workload, never punishes.
           const away = daysAway(parsed.user.lastStudyDate)
@@ -549,7 +618,35 @@ export function useStore() {
   return ctx
 }
 
-// ─── Selectors ────────────────────────────────────────────────────────────────
+// ─── Backup / Restore ────────────────────────────────────────────────────────
+// Brick is local-first. These helpers let the student safely export and
+// re-import their full study record so a cleared browser never wipes years
+// of work.
+
+export function exportBackup(): string {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? '{}'
+  const payload = {
+    app: 'brick',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: JSON.parse(raw),
+  }
+  return JSON.stringify(payload, null, 2)
+}
+
+export function importBackup(json: string): { ok: true } | { ok: false; error: string } {
+  try {
+    const parsed = JSON.parse(json)
+    const data = parsed?.data ?? parsed
+    if (!data || typeof data !== 'object') {
+      return { ok: false, error: 'Backup file is not in a recognised format.' }
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: 'Could not parse the backup file.' }
+  }
+}
 
 export function getSubjectById(subjects: Subject[], id: string): Subject | undefined {
   return subjects.find((s) => s.id === id)

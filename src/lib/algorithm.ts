@@ -128,10 +128,40 @@ export const ENERGY_MULTIPLIER: Record<EnergyLevel, number> = {
   low: 0.7,
 }
 
-export function adjustCapacityForEnergy(capacity: number, energy: EnergyLevel | null | undefined): number {
+export function adjustCapacityForEnergy(
+  capacity: number,
+  energy: EnergyLevel | null | undefined,
+  honestyDampener: number = 1,
+): number {
   if (!energy) return capacity
-  const m = ENERGY_MULTIPLIER[energy]
-  return Math.max(5, Math.round(capacity * m))
+  const baseMult = ENERGY_MULTIPLIER[energy]
+  // honestyDampener ∈ [0..1] — 1 means full effect, 0 means ignore the report.
+  // We only ever soften reductions (energy < 1), never amplify them.
+  const effectiveMult = baseMult >= 1 ? baseMult : 1 - (1 - baseMult) * honestyDampener
+  return Math.max(10, Math.round(capacity * effectiveMult))
+}
+
+// ─── Energy honesty ──────────────────────────────────────────────────────────
+// If a user repeatedly reports "low" energy but completes assignments easily,
+// Brick quietly trusts the report less. Returns a multiplier in [0..1]:
+//   1.0 → full trust  ·  0.4 → trust is halved
+export function computeEnergyHonesty(
+  history: { date: string; energy: EnergyLevel; completionPct: number }[] | undefined,
+): number {
+  if (!history || history.length < 4) return 1
+  const recent = history.slice(-10)
+  let lowReports = 0
+  let lowOvershoot = 0
+  for (const h of recent) {
+    if (h.energy === 'low' || h.energy === 'okay') {
+      lowReports++
+      if (h.completionPct >= 0.95) lowOvershoot++
+    }
+  }
+  if (lowReports < 3) return 1
+  const overshootRate = lowOvershoot / lowReports
+  // Smooth dampener: 0 overshoot → 1.0, 100% overshoot → 0.4
+  return Math.max(0.4, 1 - overshootRate * 0.6)
 }
 
 // ─── Lecture difficulty ──────────────────────────────────────────────────────
@@ -172,8 +202,8 @@ function rankSubjects(subjects: Subject[], sessions: StudySessionRecord[]): Subj
     recentCount.set(s.subjectId, (recentCount.get(s.subjectId) ?? 0) + 1)
   }
 
-  const withPending = subjects.filter((s) =>
-    s.lectures.some((l) => l.status === 'pending'),
+  const withPending = subjects.filter(
+    (s) => !s.archived && s.lectures.some((l) => l.status === 'pending'),
   )
 
   const ranked: RankedSubject[] = withPending.map((subject) => {
@@ -188,8 +218,11 @@ function rankSubjects(subjects: Subject[], sessions: StudySessionRecord[]): Subj
     const recency = Math.min(6, daysSince * 0.6)
     // Neglect: penalise subjects that already got plenty of attention this fortnight
     const neglect = Math.max(0, 4 - recent)
+    // Starvation guarantee: any subject untouched for a week (or never) jumps
+    // to the front of the line, regardless of how small its workload is.
+    const starvationBoost = !last || daysSince >= 7 ? 5 : 0
 
-    return { subject, score: workload + recency + neglect }
+    return { subject, score: workload + recency + neglect + starvationBoost }
   })
 
   ranked.sort((a, b) => b.score - a.score)
@@ -273,54 +306,85 @@ const GENERAL_MESSAGES = [
   'The work you do today settles into your foundation.',
 ]
 
+const MENTOR_POOLS = {
+  recoveryLong: [
+    "Welcome back. We\u2019ll rebuild gradually, one quiet brick at a time.",
+    'No rush. The home is still here, waiting.',
+    'Begin again — softly. That is enough for today.',
+  ],
+  recoveryMid: [
+    "Welcome back. Today\u2019s session is lighter on purpose.",
+    "Glad you returned. We start from where you are.",
+  ],
+  recoveryShort: [
+    "Glad you\u2019re here. We\u2019ll ease back into your rhythm.",
+    'A short pause is fine. Today we resume gently.',
+  ],
+  lowEnergy: [
+    "Let\u2019s keep today\u2019s session simple. Showing up is enough.",
+    'A small session today. That still counts.',
+    'Quiet effort still moves the work forward.',
+  ],
+  okayEnergy: [
+    'A calm, steady session today. Nothing more.',
+    'Today, just enough. Tomorrow can be more.',
+  ],
+  paused: [
+    'Holding steady today. Strength is also built in pauses.',
+    'No growth today. Just consistency. That is the work.',
+  ],
+  difficult: [
+    "Let\u2019s keep today\u2019s session simple.",
+    'Hard days teach the body the rhythm. We continue gently.',
+  ],
+  grew: [
+    'Your rhythm is becoming more natural. Quietly, it grew.',
+    'A small step up. Earned, not pushed.',
+  ],
+  consistent: [
+    'Steady. Consistent. This is how homes get built.',
+    'The pattern is holding. That is the whole point.',
+  ],
+  flowing: [
+    'You\u2019re moving well. Keep the same calm pace.',
+    'Easy days are gifts. Receive them.',
+  ],
+  general: GENERAL_MESSAGES,
+}
+
+function pickFromPool(pool: string[], seed: number): string {
+  if (pool.length === 0) return ''
+  return pool[Math.abs(seed) % pool.length]
+}
+
 export function getMentorMessage(
   contextOrTotal: MentorContext | number,
 ): string {
-  // Back-compat: callers may still pass just a session count.
   const ctx: MentorContext =
     typeof contextOrTotal === 'number'
       ? { totalSessions: contextOrTotal, recentFeedback: [], daysSinceLastStudy: 0 }
       : contextOrTotal
 
-  // 1. Long absence / recovery — strongest priority
-  if (ctx.recoveryMode || ctx.daysSinceLastStudy >= 15) {
-    return "Welcome back. We\u2019ll rebuild gradually, one quiet brick at a time."
-  }
-  if (ctx.daysSinceLastStudy >= 8) {
-    return "Welcome back. Today\u2019s session is lighter on purpose."
-  }
-  if (ctx.daysSinceLastStudy >= 4) {
-    return "Glad you\u2019re here. We\u2019ll ease back into your rhythm."
-  }
+  // Seed varies by day so messages quietly rotate without feeling random.
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
+  const seed = dayOfYear + ctx.totalSessions
 
-  // 2. Energy-aware
-  if (ctx.energy === 'low') {
-    return "Let\u2019s keep today\u2019s session simple. Showing up is enough."
-  }
-  if (ctx.energy === 'okay') {
-    return 'A calm, steady session today. Nothing more.'
-  }
+  if (ctx.recoveryMode || ctx.daysSinceLastStudy >= 15) return pickFromPool(MENTOR_POOLS.recoveryLong, seed)
+  if (ctx.daysSinceLastStudy >= 8) return pickFromPool(MENTOR_POOLS.recoveryMid, seed)
+  if (ctx.daysSinceLastStudy >= 4) return pickFromPool(MENTOR_POOLS.recoveryShort, seed)
 
-  // 3. Engine state
-  if (ctx.progressionPaused) {
-    return 'Holding steady today. Strength is also built in pauses.'
-  }
+  if (ctx.energy === 'low') return pickFromPool(MENTOR_POOLS.lowEnergy, seed)
+  if (ctx.energy === 'okay') return pickFromPool(MENTOR_POOLS.okayEnergy, seed)
+
+  if (ctx.progressionPaused) return pickFromPool(MENTOR_POOLS.paused, seed)
+
   const last3 = ctx.recentFeedback.slice(-3)
-  if (last3.length === 3 && last3.every((f) => f === 'difficult')) {
-    return "Let\u2019s keep today\u2019s session simple."
-  }
-  if (ctx.rhythmGrew) {
-    return 'Your rhythm is becoming more natural. Quietly, it grew.'
-  }
-  if (last3.length === 3 && last3.every((f) => f === 'easy')) {
-    return 'You\u2019re moving well. Keep the same calm pace.'
-  }
-  if (ctx.totalSessions >= 7 && ctx.daysSinceLastStudy <= 1) {
-    return 'Steady. Consistent. This is how homes get built.'
-  }
+  if (last3.length === 3 && last3.every((f) => f === 'difficult')) return pickFromPool(MENTOR_POOLS.difficult, seed)
+  if (ctx.rhythmGrew) return pickFromPool(MENTOR_POOLS.grew, seed)
+  if (last3.length === 3 && last3.every((f) => f === 'easy')) return pickFromPool(MENTOR_POOLS.flowing, seed)
+  if (ctx.totalSessions >= 7 && ctx.daysSinceLastStudy <= 1) return pickFromPool(MENTOR_POOLS.consistent, seed)
 
-  // 4. General rotation
-  return GENERAL_MESSAGES[ctx.totalSessions % GENERAL_MESSAGES.length]
+  return pickFromPool(MENTOR_POOLS.general, seed)
 }
 
 // ─── House of Knowledge ───────────────────────────────────────────────────────
@@ -394,6 +458,17 @@ export interface HouseState {
   fraction: number
   recentRestoration: string | null
   description: string
+  /** True when syllabus has grown since the progress floor was set — house is expanding. */
+  expansion: boolean
+  /** How many additional syllabus minutes were added after the floor was locked. */
+  expansionMinutes: number
+}
+
+export interface HouseFloor {
+  /** Highest fraction ever achieved, 0..1+. The visible house never drops below this. */
+  fraction: number
+  /** Total syllabus minutes when the floor was last captured. */
+  totalMinutes: number
 }
 
 export interface SyllabusProgress {
@@ -418,15 +493,24 @@ export function getHouseState(
   totalSessions: number,
   effortScore?: number,
   syllabus?: SyllabusProgress,
+  floor?: HouseFloor,
 ): HouseState {
   const bricks = Math.max(0, totalSessions)
 
   // ── Syllabus-driven progression ───────────────────────────────────────────
   if (syllabus && syllabus.totalMinutes > 0) {
     const fractionRaw = syllabus.completedMinutes / syllabus.totalMinutes
-    // Allow fraction > 1 so long-term expansions can unlock for users who
-    // continue past 100% (rare, but possible with repeated practice).
-    const fraction = Math.max(0, fractionRaw)
+    // The visible house never decreases — apply the floor.
+    const floorFraction = floor?.fraction ?? 0
+    const fraction = Math.max(0, fractionRaw, floorFraction)
+    const expansion =
+      !!floor &&
+      floor.totalMinutes > 0 &&
+      syllabus.totalMinutes > floor.totalMinutes &&
+      fractionRaw < floorFraction
+    const expansionMinutes = expansion
+      ? Math.max(0, syllabus.totalMinutes - floor.totalMinutes)
+      : 0
 
     let level = 0
     for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
@@ -444,8 +528,6 @@ export function getHouseState(
       stageSpan > 0
         ? Math.min(1, Math.max(0, (fraction - stage.fractionRequired) / stageSpan))
         : 1
-    // Bricks-to-next now means "how much more syllabus" — translate to bricks
-    // as a soft hint using the user's average minutes-per-brick.
     const avgMinPerBrick = bricks > 0 ? syllabus.completedMinutes / bricks : 30
     const minutesToNext = nextStage
       ? Math.max(0, (nextStage.fractionRequired - fraction) * syllabus.totalMinutes)
@@ -464,6 +546,8 @@ export function getHouseState(
       fraction: Math.min(1, fraction),
       recentRestoration: bricks > 0 ? `+1 brick placed` : null,
       description: stage.description,
+      expansion,
+      expansionMinutes,
     }
   }
 
@@ -498,14 +582,17 @@ export function getHouseState(
     fraction,
     recentRestoration: bricks > 0 ? `+1 brick placed` : null,
     description: stage.description,
+    expansion: false,
+    expansionMinutes: 0,
   }
 }
 
-/** Aggregate completed vs. total minutes across the syllabus. */
+/** Aggregate completed vs. total minutes across the syllabus. Archived subjects are excluded. */
 export function getSyllabusProgress(subjects: Subject[]): SyllabusProgress {
   let completed = 0
   let total = 0
   for (const s of subjects) {
+    if (s.archived) continue
     for (const l of s.lectures) {
       total += l.durationMinutes
       completed += Math.min(l.watchedMinutes, l.durationMinutes)
@@ -689,3 +776,36 @@ export const SUBJECT_COLORS: import('./types').SubjectColor[] = [
 export const SUBJECT_ICONS: import('./types').SubjectIcon[] = [
   'atom', 'flask', 'calculator', 'globe', 'book', 'microscope', 'landmark', 'code',
 ]
+
+// ─── Lecture edit validation ─────────────────────────────────────────────────
+// Completed lectures are immutable. Pending lectures can be edited freely.
+// Partial-progress lectures can be edited but a duration shrink below the
+// already-watched minutes must be confirmed explicitly by the caller.
+import type { Lecture as _Lecture } from './types'
+export type LectureEditValidation =
+  | { ok: true }
+  | { ok: false; reason: 'completed-locked' | 'duration-below-watched'; message: string }
+
+export function validateLectureEdit(
+  lecture: _Lecture,
+  next: { durationMinutes?: number },
+): LectureEditValidation {
+  if (lecture.status === 'completed') {
+    return {
+      ok: false,
+      reason: 'completed-locked',
+      message: 'Completed lectures are locked to keep your progress honest.',
+    }
+  }
+  if (
+    next.durationMinutes !== undefined &&
+    next.durationMinutes < lecture.watchedMinutes
+  ) {
+    return {
+      ok: false,
+      reason: 'duration-below-watched',
+      message: `You've already studied ${lecture.watchedMinutes} minutes. Shrink confirmation required.`,
+    }
+  }
+  return { ok: true }
+}

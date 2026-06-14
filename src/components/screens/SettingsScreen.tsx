@@ -15,10 +15,14 @@ import {
   Sun,
   Moon,
   Monitor,
+  Archive,
+  Download,
+  Upload,
+  RotateCcw,
 } from 'lucide-react'
 import { useTheme, type ThemeMode } from '@/lib/theme'
 import { cn } from '@/lib/utils'
-import { useStore } from '@/lib/store'
+import { useStore, exportBackup, importBackup } from '@/lib/store'
 import { formatMinutes } from '@/lib/algorithm'
 import { SUBJECT_COLORS, SUBJECT_ICONS } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
@@ -228,7 +232,9 @@ function CapacityCard() {
 
 function SubjectManager() {
   const { state, dispatch } = useStore()
-  const { subjects } = state
+  const { subjects: allSubjects } = state
+  const subjects = allSubjects.filter((s) => !s.archived)
+  const archivedSubjects = allSubjects.filter((s) => s.archived)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
@@ -448,38 +454,64 @@ function SubjectManager() {
                   </button>
                 </div>
 
-                {showDeleteConfirm === subject.id ? (
-                  <div className="bg-destructive/10 rounded-xl p-3 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle size={14} className="text-destructive shrink-0" />
-                      <p className="text-xs text-destructive font-medium">
-                        Delete {subject.name}? This cannot be undone.
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => deleteSubject(subject.id)}
-                        className="flex-1 h-9 bg-destructive text-white rounded-lg text-sm font-semibold"
-                      >
-                        Delete
-                      </button>
-                      <button
-                        onClick={() => setShowDeleteConfirm(null)}
-                        className="flex-1 h-9 bg-muted text-foreground rounded-lg text-sm font-medium"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowDeleteConfirm(subject.id)}
-                    className="flex items-center gap-1.5 text-xs text-destructive font-medium py-1"
-                  >
-                    <Trash2 size={13} />
-                    Delete Subject
-                  </button>
-                )}
+                {(() => {
+                  const hasProgress = subject.lectures.some(
+                    (l) => l.status === 'completed' || l.watchedMinutes > 0,
+                  )
+                  if (showDeleteConfirm === subject.id) {
+                    return (
+                      <div className="bg-muted rounded-xl p-3 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle size={14} className="text-muted-foreground shrink-0" />
+                          <p className="text-xs text-foreground font-medium">
+                            {hasProgress
+                              ? `Archive ${subject.name}? It will leave today's rotation but all progress and history are preserved.`
+                              : `Delete ${subject.name}? It has no progress yet.`}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              if (hasProgress) {
+                                dispatch({ type: 'ARCHIVE_SUBJECT', subjectId: subject.id })
+                              } else {
+                                deleteSubject(subject.id)
+                              }
+                              setShowDeleteConfirm(null)
+                              if (expandedId === subject.id) setExpandedId(null)
+                            }}
+                            className={cn(
+                              'flex-1 h-9 rounded-lg text-sm font-semibold',
+                              hasProgress
+                                ? 'bg-foreground text-background'
+                                : 'bg-destructive text-white',
+                            )}
+                          >
+                            {hasProgress ? 'Archive' : 'Delete'}
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(null)}
+                            className="flex-1 h-9 bg-card border border-border text-foreground rounded-lg text-sm font-medium"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <button
+                      onClick={() => setShowDeleteConfirm(subject.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 text-xs font-medium py-1',
+                        hasProgress ? 'text-muted-foreground' : 'text-destructive',
+                      )}
+                    >
+                      {hasProgress ? <Archive size={13} /> : <Trash2 size={13} />}
+                      {hasProgress ? 'Archive Subject' : 'Delete Subject'}
+                    </button>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -493,6 +525,40 @@ function SubjectManager() {
         <Plus size={16} />
         Add Subject
       </button>
+
+      {archivedSubjects.length > 0 && (
+        <div className="mt-2 pt-3 border-t border-border/60">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Archived ({archivedSubjects.length})
+          </p>
+          <div className="flex flex-col gap-2">
+            {archivedSubjects.map((subject) => (
+              <div
+                key={subject.id}
+                className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-muted/40 border border-border/60"
+              >
+                <SubjectIcon icon={subject.icon} color={subject.color} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{subject.name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {subject.lectures.filter((l) => l.status === 'completed').length}/
+                    {subject.lectures.length} lectures · history preserved
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    dispatch({ type: 'UNARCHIVE_SUBJECT', subjectId: subject.id })
+                  }
+                  className="flex items-center gap-1 text-xs font-medium text-primary px-2.5 py-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                >
+                  <RotateCcw size={12} />
+                  Restore
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -537,8 +603,87 @@ function AppearanceCard() {
   )
 }
 
-// ─── Reset confirm ─────────────────────────────────────────────────────────
+// ─── Backup / Restore ──────────────────────────────────────────────────────
 
+function BackupCard() {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [status, setStatus] = useState<{ kind: 'ok' | 'err'; message: string } | null>(null)
+
+  const onExport = () => {
+    const json = exportBackup()
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `brick-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setStatus({ kind: 'ok', message: 'Backup downloaded.' })
+  }
+
+  const onImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result
+      if (typeof text !== 'string') return
+      const result = importBackup(text)
+      if (result.ok) {
+        setStatus({ kind: 'ok', message: 'Backup restored. Reloading…' })
+        setTimeout(() => window.location.reload(), 600)
+      } else {
+        setStatus({ kind: 'err', message: result.error })
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  return (
+    <div className="bg-card rounded-3xl border border-border px-4 py-4">
+      <p className="text-sm font-semibold text-foreground mb-1">Backup & Restore</p>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+        Brick lives on this device. Export a copy of your progress regularly so a cleared browser never erases your work.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={onExport}
+          className="flex items-center justify-center gap-2 h-10 rounded-xl bg-foreground text-background text-sm font-medium active:opacity-80 transition-opacity"
+        >
+          <Download size={14} />
+          Export
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="flex items-center justify-center gap-2 h-10 rounded-xl bg-muted text-foreground text-sm font-medium active:opacity-80 transition-opacity"
+        >
+          <Upload size={14} />
+          Restore
+        </button>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json"
+        onChange={onImport}
+        className="hidden"
+      />
+      {status && (
+        <p
+          className={cn(
+            'text-xs mt-2',
+            status.kind === 'ok' ? 'text-success' : 'text-destructive',
+          )}
+        >
+          {status.message}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ─── Reset confirm ─────────────────────────────────────────────────────────
 
 function ResetButton() {
   const { dispatch } = useStore()
@@ -643,6 +788,11 @@ export default function SettingsScreen() {
               <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow-sm" />
             </div>
           </div>
+        </section>
+
+        {/* Backup */}
+        <section>
+          <BackupCard />
         </section>
 
         {/* Danger zone */}
