@@ -67,10 +67,10 @@ export default function PlanScreen() {
         <div className="bg-card rounded-3xl border border-border p-5">
           <div className="flex items-center justify-between mb-1">
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-              House Progress
+              {scale.label} Progress
             </p>
             <span className="text-xs text-primary font-semibold">
-              {house.bricks} {house.bricks === 1 ? 'brick' : 'bricks'}
+              {Math.round(house.fraction * 100)}%
             </span>
           </div>
           <h2 className="font-heading font-bold text-2xl text-foreground tracking-tight mt-1">
@@ -87,16 +87,22 @@ export default function PlanScreen() {
             />
           </div>
 
+          <p className="text-[11px] text-muted-foreground mt-3">
+            {formatMinutes(syllabus.completedMinutes)} of {formatMinutes(syllabus.totalMinutes)} studied
+            <span className="mx-1.5">·</span>
+            {house.bricks} {house.bricks === 1 ? 'brick' : 'bricks'} placed
+          </p>
+
           {house.nextStage ? (
-            <p className="text-xs text-muted-foreground mt-3">
+            <p className="text-xs text-muted-foreground mt-2">
               Next upgrade:{' '}
               <span className="text-foreground font-semibold">{house.nextStage.label}</span>{' '}
               <span className="text-muted-foreground">
-                · {house.bricksToNext} {house.bricksToNext === 1 ? 'brick' : 'bricks'} to go
+                · at {Math.round(house.nextStage.fractionRequired * 100)}% of syllabus
               </span>
             </p>
           ) : (
-            <p className="text-xs text-primary mt-3 font-medium">
+            <p className="text-xs text-primary mt-2 font-medium">
               Your home is complete. Keep showing up — the garden keeps growing.
             </p>
           )}
