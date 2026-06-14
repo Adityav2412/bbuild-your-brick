@@ -214,9 +214,24 @@ function reducer(state: AppState, action: Action): AppState {
       }
       const { subjectId, lectureId, targetMinutes } = state.activeSession
       const actualMinutes = Math.round(action.actualSeconds / 60)
+      const targetSeconds = Math.max(1, targetMinutes * 60)
+      const completionPct = action.actualSeconds / targetSeconds
+
+      // Session-completion logic — Brick never rewards a few seconds of study.
+      //   < 50%  → discarded entirely (no record, no progress, no brick)
+      //   50-89% → partial: save history + watched time, no brick, no feedback
+      //   ≥ 90%  → full credit: brick + feedback prompt + capacity eligible
+      const tier: 'discard' | 'partial' | 'complete' =
+        completionPct < 0.5 ? 'discard' : completionPct < 0.9 ? 'partial' : 'complete'
+
+      if (tier === 'discard') {
+        return { ...state, activeSession: null, screen: 'home' }
+      }
 
       const sub = state.subjects.find((s) => s.id === subjectId)
       const lec = sub?.lectures.find((l) => l.id === lectureId)
+      const today = todayString()
+      const isBrick = tier === 'complete'
 
       const updatedSubjects = state.subjects.map((s) => {
         if (s.id !== subjectId) return s
@@ -225,22 +240,25 @@ function reducer(state: AppState, action: Action): AppState {
           lectures: s.lectures.map((l) => {
             if (l.id !== lectureId) return l
             const newWatched = l.watchedMinutes + actualMinutes
-            const isDone = action.completed || newWatched >= l.durationMinutes
+            // Only mark a lecture "completed" if the brick was earned AND the
+            // lecture itself has actually been fully watched. A 90% session of
+            // a 60-minute lecture should not retire the lecture.
+            const isDone = isBrick && newWatched >= l.durationMinutes
             return {
               ...l,
               watchedMinutes: Math.min(newWatched, l.durationMinutes),
               status: isDone ? ('completed' as const) : ('pending' as const),
-              completedDate: isDone ? todayString() : undefined,
+              completedDate: isDone ? today : l.completedDate,
             }
           }),
         }
       })
 
-      const today = todayString()
       const updatedUser: User = {
         ...state.user,
         lastStudyDate: today,
-        totalSessions: state.user.totalSessions + 1,
+        // Bricks == completed sessions. Only count toward totals on full credit.
+        totalSessions: state.user.totalSessions + (isBrick ? 1 : 0),
         totalMinutes: state.user.totalMinutes + actualMinutes,
       }
 
@@ -254,7 +272,7 @@ function reducer(state: AppState, action: Action): AppState {
         lectureName: lec?.name ?? '',
         plannedMinutes: targetMinutes,
         actualMinutes,
-        completed: action.completed,
+        completed: isBrick,
         feedback: null,
       }
 
@@ -267,7 +285,9 @@ function reducer(state: AppState, action: Action): AppState {
         subjects: updatedSubjects,
         sessions: [...state.sessions, newRecord],
         todaySchedule: schedule,
-        pendingFeedback: { sessionId },
+        // Feedback (and therefore capacity progression) is only triggered on a
+        // full-credit session.
+        pendingFeedback: isBrick ? { sessionId } : null,
         screen: 'home',
       }
     }
