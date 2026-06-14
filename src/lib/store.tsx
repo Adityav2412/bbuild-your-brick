@@ -337,15 +337,44 @@ function reducer(state: AppState, action: Action): AppState {
       const prevHistory = state.user.energyHistory ?? []
       const nextEnergyHistory = [...prevHistory, ...todayEnergyEntry].slice(-30)
 
+      // Detect a house-stage advancement so the mentor can celebrate it once.
+      const prevHouse = getHouseState(
+        state.user.totalSessions,
+        state.user.houseEffortScore,
+        getSyllabusProgress(state.subjects),
+        { fraction: prevFloor, totalMinutes: state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes },
+      )
+      const projectedSessions = state.user.totalSessions + (isBrick ? 1 : 0)
+      const nextHouse = getHouseState(
+        projectedSessions,
+        (state.user.houseEffortScore ?? 0) + effortBonus,
+        newSyll,
+        { fraction: nextFloor, totalMinutes: nextFloorTotal },
+      )
+      const stageAdvanced =
+        !nextHouse.stage.isExpansion && nextHouse.level > prevHouse.level
+      const stageMessage = stageAdvanced
+        ? // STAGE_LINES live inside algorithm.ts via getMentorMessage; we
+          // mirror the same key here so the mentor surfaces it on next mount.
+          getMentorMessage({
+            totalSessions: projectedSessions,
+            recentFeedback: state.user.recentFeedback ?? [],
+            daysSinceLastStudy: 0,
+            houseStageKey: nextHouse.stage.key,
+            houseStageJustChanged: true,
+          })
+        : null
+
       const updatedUser: User = {
         ...state.user,
         lastStudyDate: today,
-        totalSessions: state.user.totalSessions + (isBrick ? 1 : 0),
+        totalSessions: projectedSessions,
         totalMinutes: state.user.totalMinutes + actualMinutes,
         houseEffortScore: (state.user.houseEffortScore ?? 0) + effortBonus,
         houseProgressFloor: nextFloor,
         houseFloorTotalMinutes: nextFloorTotal,
         energyHistory: nextEnergyHistory,
+        lastMentorNote: stageMessage ?? state.user.lastMentorNote ?? null,
       }
 
       const sessionId = makeId()
