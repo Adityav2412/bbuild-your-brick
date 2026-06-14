@@ -195,7 +195,35 @@ function reducer(state: AppState, action: Action): AppState {
     }
 
     case 'DELETE_SUBJECT': {
-      const subjects = state.subjects.filter((s) => s.id !== action.subjectId)
+      // Subjects with progress cannot be permanently deleted — they are archived
+      // to preserve history, completed minutes, and house progress integrity.
+      const target = state.subjects.find((s) => s.id === action.subjectId)
+      const hasProgress = target ? subjectHasProgress(target) : false
+      const subjects = hasProgress
+        ? state.subjects.map((s) =>
+            s.id === action.subjectId ? { ...s, archived: true } : s,
+          )
+        : state.subjects.filter((s) => s.id !== action.subjectId)
+      const schedule = state.user
+        ? buildTodaySchedule(subjects, effectiveCapacity(state.user), state.sessions)
+        : state.todaySchedule
+      return { ...state, subjects, todaySchedule: schedule }
+    }
+
+    case 'ARCHIVE_SUBJECT': {
+      const subjects = state.subjects.map((s) =>
+        s.id === action.subjectId ? { ...s, archived: true } : s,
+      )
+      const schedule = state.user
+        ? buildTodaySchedule(subjects, effectiveCapacity(state.user), state.sessions)
+        : state.todaySchedule
+      return { ...state, subjects, todaySchedule: schedule }
+    }
+
+    case 'UNARCHIVE_SUBJECT': {
+      const subjects = state.subjects.map((s) =>
+        s.id === action.subjectId ? { ...s, archived: false } : s,
+      )
       const schedule = state.user
         ? buildTodaySchedule(subjects, effectiveCapacity(state.user), state.sessions)
         : state.todaySchedule
