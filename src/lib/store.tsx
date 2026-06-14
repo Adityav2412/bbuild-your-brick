@@ -316,12 +316,32 @@ function reducer(state: AppState, action: Action): AppState {
       // way that quietly reflects effort.
       const effortBonus = isBrick ? 1 + Math.min(0.5, actualMinutes / 60) : 0
 
+      // Update house progress floor — visible house never decreases.
+      const newSyll = getSyllabusProgress(updatedSubjects)
+      const newFraction = newSyll.totalMinutes > 0 ? newSyll.completedMinutes / newSyll.totalMinutes : 0
+      const prevFloor = state.user.houseProgressFloor ?? 0
+      const nextFloor = Math.max(prevFloor, newFraction)
+      const nextFloorTotal = nextFloor > prevFloor
+        ? newSyll.totalMinutes
+        : state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes
+
+      // Energy honesty tracking — record today's completion against today's energy report.
+      const todayEnergyEntry =
+        state.user.todayEnergy && state.user.energyDate === today
+          ? [{ date: today, energy: state.user.todayEnergy, completionPct: Math.min(1, completionPct) }]
+          : []
+      const prevHistory = state.user.energyHistory ?? []
+      const nextEnergyHistory = [...prevHistory, ...todayEnergyEntry].slice(-30)
+
       const updatedUser: User = {
         ...state.user,
         lastStudyDate: today,
         totalSessions: state.user.totalSessions + (isBrick ? 1 : 0),
         totalMinutes: state.user.totalMinutes + actualMinutes,
         houseEffortScore: (state.user.houseEffortScore ?? 0) + effortBonus,
+        houseProgressFloor: nextFloor,
+        houseFloorTotalMinutes: nextFloorTotal,
+        energyHistory: nextEnergyHistory,
       }
 
       const sessionId = makeId()
