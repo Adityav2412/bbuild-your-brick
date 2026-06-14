@@ -254,8 +254,9 @@ export default function HomeScreen() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => dispatch({ type: 'NAVIGATE', screen: 'settings' })}
             className="relative w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center"
-            aria-label="Notifications"
+            aria-label="Reminder settings"
           >
             <Bell size={16} className="text-foreground" strokeWidth={1.8} />
           </button>
