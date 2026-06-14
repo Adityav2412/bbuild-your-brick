@@ -12,7 +12,11 @@ import {
   Check,
   AlertTriangle,
   Camera,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react'
+import { useTheme, type ThemeMode } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import { formatMinutes } from '@/lib/algorithm'
