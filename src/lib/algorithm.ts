@@ -306,54 +306,85 @@ const GENERAL_MESSAGES = [
   'The work you do today settles into your foundation.',
 ]
 
+const MENTOR_POOLS = {
+  recoveryLong: [
+    "Welcome back. We\u2019ll rebuild gradually, one quiet brick at a time.",
+    'No rush. The home is still here, waiting.',
+    'Begin again — softly. That is enough for today.',
+  ],
+  recoveryMid: [
+    "Welcome back. Today\u2019s session is lighter on purpose.",
+    "Glad you returned. We start from where you are.",
+  ],
+  recoveryShort: [
+    "Glad you\u2019re here. We\u2019ll ease back into your rhythm.",
+    'A short pause is fine. Today we resume gently.',
+  ],
+  lowEnergy: [
+    "Let\u2019s keep today\u2019s session simple. Showing up is enough.",
+    'A small session today. That still counts.',
+    'Quiet effort still moves the work forward.',
+  ],
+  okayEnergy: [
+    'A calm, steady session today. Nothing more.',
+    'Today, just enough. Tomorrow can be more.',
+  ],
+  paused: [
+    'Holding steady today. Strength is also built in pauses.',
+    'No growth today. Just consistency. That is the work.',
+  ],
+  difficult: [
+    "Let\u2019s keep today\u2019s session simple.",
+    'Hard days teach the body the rhythm. We continue gently.',
+  ],
+  grew: [
+    'Your rhythm is becoming more natural. Quietly, it grew.',
+    'A small step up. Earned, not pushed.',
+  ],
+  consistent: [
+    'Steady. Consistent. This is how homes get built.',
+    'The pattern is holding. That is the whole point.',
+  ],
+  flowing: [
+    'You\u2019re moving well. Keep the same calm pace.',
+    'Easy days are gifts. Receive them.',
+  ],
+  general: GENERAL_MESSAGES,
+}
+
+function pickFromPool(pool: string[], seed: number): string {
+  if (pool.length === 0) return ''
+  return pool[Math.abs(seed) % pool.length]
+}
+
 export function getMentorMessage(
   contextOrTotal: MentorContext | number,
 ): string {
-  // Back-compat: callers may still pass just a session count.
   const ctx: MentorContext =
     typeof contextOrTotal === 'number'
       ? { totalSessions: contextOrTotal, recentFeedback: [], daysSinceLastStudy: 0 }
       : contextOrTotal
 
-  // 1. Long absence / recovery — strongest priority
-  if (ctx.recoveryMode || ctx.daysSinceLastStudy >= 15) {
-    return "Welcome back. We\u2019ll rebuild gradually, one quiet brick at a time."
-  }
-  if (ctx.daysSinceLastStudy >= 8) {
-    return "Welcome back. Today\u2019s session is lighter on purpose."
-  }
-  if (ctx.daysSinceLastStudy >= 4) {
-    return "Glad you\u2019re here. We\u2019ll ease back into your rhythm."
-  }
+  // Seed varies by day so messages quietly rotate without feeling random.
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
+  const seed = dayOfYear + ctx.totalSessions
 
-  // 2. Energy-aware
-  if (ctx.energy === 'low') {
-    return "Let\u2019s keep today\u2019s session simple. Showing up is enough."
-  }
-  if (ctx.energy === 'okay') {
-    return 'A calm, steady session today. Nothing more.'
-  }
+  if (ctx.recoveryMode || ctx.daysSinceLastStudy >= 15) return pickFromPool(MENTOR_POOLS.recoveryLong, seed)
+  if (ctx.daysSinceLastStudy >= 8) return pickFromPool(MENTOR_POOLS.recoveryMid, seed)
+  if (ctx.daysSinceLastStudy >= 4) return pickFromPool(MENTOR_POOLS.recoveryShort, seed)
 
-  // 3. Engine state
-  if (ctx.progressionPaused) {
-    return 'Holding steady today. Strength is also built in pauses.'
-  }
+  if (ctx.energy === 'low') return pickFromPool(MENTOR_POOLS.lowEnergy, seed)
+  if (ctx.energy === 'okay') return pickFromPool(MENTOR_POOLS.okayEnergy, seed)
+
+  if (ctx.progressionPaused) return pickFromPool(MENTOR_POOLS.paused, seed)
+
   const last3 = ctx.recentFeedback.slice(-3)
-  if (last3.length === 3 && last3.every((f) => f === 'difficult')) {
-    return "Let\u2019s keep today\u2019s session simple."
-  }
-  if (ctx.rhythmGrew) {
-    return 'Your rhythm is becoming more natural. Quietly, it grew.'
-  }
-  if (last3.length === 3 && last3.every((f) => f === 'easy')) {
-    return 'You\u2019re moving well. Keep the same calm pace.'
-  }
-  if (ctx.totalSessions >= 7 && ctx.daysSinceLastStudy <= 1) {
-    return 'Steady. Consistent. This is how homes get built.'
-  }
+  if (last3.length === 3 && last3.every((f) => f === 'difficult')) return pickFromPool(MENTOR_POOLS.difficult, seed)
+  if (ctx.rhythmGrew) return pickFromPool(MENTOR_POOLS.grew, seed)
+  if (last3.length === 3 && last3.every((f) => f === 'easy')) return pickFromPool(MENTOR_POOLS.flowing, seed)
+  if (ctx.totalSessions >= 7 && ctx.daysSinceLastStudy <= 1) return pickFromPool(MENTOR_POOLS.consistent, seed)
 
-  // 4. General rotation
-  return GENERAL_MESSAGES[ctx.totalSessions % GENERAL_MESSAGES.length]
+  return pickFromPool(MENTOR_POOLS.general, seed)
 }
 
 // ─── House of Knowledge ───────────────────────────────────────────────────────
