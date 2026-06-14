@@ -790,6 +790,11 @@ export default function SettingsScreen() {
           </div>
         </section>
 
+        {/* Backup */}
+        <section>
+          <BackupCard />
+        </section>
+
         {/* Danger zone */}
         <section className="pb-4">
           <ResetButton />
