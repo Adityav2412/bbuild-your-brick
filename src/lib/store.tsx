@@ -26,6 +26,7 @@ import {
   SUBJECT_COLORS,
   SUBJECT_ICONS,
 } from './algorithm'
+import { startReminderScheduler, stopReminderScheduler } from './reminders'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
