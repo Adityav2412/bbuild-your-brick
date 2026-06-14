@@ -618,7 +618,35 @@ export function useStore() {
   return ctx
 }
 
-// ─── Selectors ────────────────────────────────────────────────────────────────
+// ─── Backup / Restore ────────────────────────────────────────────────────────
+// Brick is local-first. These helpers let the student safely export and
+// re-import their full study record so a cleared browser never wipes years
+// of work.
+
+export function exportBackup(): string {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? '{}'
+  const payload = {
+    app: 'brick',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: JSON.parse(raw),
+  }
+  return JSON.stringify(payload, null, 2)
+}
+
+export function importBackup(json: string): { ok: true } | { ok: false; error: string } {
+  try {
+    const parsed = JSON.parse(json)
+    const data = parsed?.data ?? parsed
+    if (!data || typeof data !== 'object') {
+      return { ok: false, error: 'Backup file is not in a recognised format.' }
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: 'Could not parse the backup file.' }
+  }
+}
 
 export function getSubjectById(subjects: Subject[], id: string): Subject | undefined {
   return subjects.find((s) => s.id === id)
