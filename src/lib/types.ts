@@ -51,6 +51,12 @@ export interface User {
   recoveryMode?: boolean
   /** Optional internal effort score used for weighted house growth (sessions are still the visible brick count) */
   houseEffortScore?: number
+  /** Highest syllabus-completion fraction ever reached. House progress never visibly decreases below this. */
+  houseProgressFloor?: number
+  /** Total syllabus minutes captured at the moment the floor was last set. Used to detect house expansions. */
+  houseFloorTotalMinutes?: number
+  /** Recent energy check-ins paired with how the session(s) actually went — used to dampen abuse of "low" energy. */
+  energyHistory?: { date: string; energy: EnergyLevel; completionPct: number }[]
 }
 
 export interface Lecture {
