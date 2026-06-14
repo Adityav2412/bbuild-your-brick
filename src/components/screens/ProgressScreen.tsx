@@ -220,7 +220,7 @@ export default function ProgressScreen() {
             />
           </div>
 
-          <HouseTimeline level={house.level} totalBricks={house.bricks} />
+          <HouseTimeline level={house.level} />
         </div>
 
         {/* Subject breakdown — simple completion only */}
