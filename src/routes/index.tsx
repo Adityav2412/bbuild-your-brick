@@ -10,6 +10,7 @@ import StudySessionScreen from '@/components/screens/StudySessionScreen'
 import ProgressScreen from '@/components/screens/ProgressScreen'
 import SettingsScreen from '@/components/screens/SettingsScreen'
 import WelcomeBackScreen from '@/components/screens/WelcomeBackScreen'
+import RecoveryScreen from '@/components/screens/RecoveryScreen'
 
 export const Route = createFileRoute('/')({
   head: () => ({
@@ -45,6 +46,7 @@ function AppRouter() {
       {screen === 'progress' && <ProgressScreen />}
       {screen === 'settings' && <SettingsScreen />}
       {screen === 'welcome-back' && <WelcomeBackScreen />}
+      {screen === 'recovery' && <RecoveryScreen />}
       <BottomNav />
       <FeedbackModal />
     </div>

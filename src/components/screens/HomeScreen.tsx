@@ -2,8 +2,16 @@
 
 import { Bell, Play, ChevronRight, Home as HomeIcon, BookOpen } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { getGreeting, getMentorMessage, getHouseState, formatMinutes } from '@/lib/algorithm'
+import {
+  getGreeting,
+  getMentorMessage,
+  getHouseState,
+  formatMinutes,
+  daysAway,
+  adjustCapacityForEnergy,
+} from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
+import type { EnergyLevel } from '@/lib/types'
 
 // ─── House of Knowledge Illustration ──────────────────────────────────────────
 // Each completed session places one brick. The home evolves visually as the
@@ -134,7 +142,7 @@ function HouseCard() {
   const { user } = state
   if (!user) return null
 
-  const house = getHouseState(user.totalSessions)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore)
   const pct = Math.round(house.fraction * 100)
 
   return (
@@ -191,7 +199,24 @@ export default function HomeScreen() {
   if (!user) return null
 
   const greeting = getGreeting()
-  const mentorMessage = user.lastMentorNote || getMentorMessage(user.totalSessions)
+  const today = new Date().toISOString().split('T')[0]
+  const energySetToday = user.energyDate === today
+  const todayEnergy: EnergyLevel | null = energySetToday ? (user.todayEnergy ?? null) : null
+
+  const mentorMessage =
+    user.lastMentorNote ||
+    getMentorMessage({
+      totalSessions: user.totalSessions,
+      recentFeedback: user.recentFeedback ?? [],
+      daysSinceLastStudy: daysAway(user.lastStudyDate),
+      recoveryMode: user.recoveryMode,
+      progressionPaused: user.progressionPaused,
+      energy: todayEnergy,
+    })
+
+  const effectiveRhythm = adjustCapacityForEnergy(user.currentCapacity, todayEnergy)
+
+  const setEnergy = (e: EnergyLevel) => dispatch({ type: 'SET_ENERGY', energy: e })
 
   const todayFocus = todaySchedule[0]
   const focusSubject = subjects.find((s) => s.id === todayFocus?.subjectId)
@@ -272,6 +297,33 @@ export default function HomeScreen() {
           </div>
         )}
 
+        {/* Daily Energy Check-In — appears once per day */}
+        {!energySetToday && (
+          <div className="bg-card rounded-3xl border border-border px-4 py-4">
+            <p className="text-sm font-semibold text-foreground">How are you feeling today?</p>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+              Brick will tune today's session to match.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'good' as const, emoji: '😊', label: 'Good' },
+                { value: 'okay' as const, emoji: '🙂', label: 'Okay' },
+                { value: 'low' as const, emoji: '😴', label: 'Low' },
+              ].map((o) => (
+                <button
+                  key={o.value}
+                  onClick={() => setEnergy(o.value)}
+                  className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 hover:border-primary/40 transition-colors"
+                >
+                  <span className="text-xl leading-none">{o.emoji}</span>
+                  <span className="text-xs font-medium text-foreground">{o.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+
         {/* Today's Assignment Card */}
         {todayFocus && focusSubject && focusLecture ? (
           <div className="bg-card rounded-3xl border border-border overflow-hidden">
@@ -335,7 +387,12 @@ export default function HomeScreen() {
         <div className="flex items-center justify-between px-4 py-3 bg-card rounded-2xl border border-border">
           <p className="text-sm text-muted-foreground">Today&apos;s Rhythm</p>
           <p className="text-sm font-semibold text-foreground">
-            {formatMinutes(user.currentCapacity)}
+            {formatMinutes(effectiveRhythm)}
+            {todayEnergy && todayEnergy !== 'good' && effectiveRhythm !== user.currentCapacity && (
+              <span className="ml-2 text-xs text-muted-foreground font-normal">
+                ({todayEnergy === 'low' ? 'low energy' : 'okay'})
+              </span>
+            )}
           </p>
         </div>
 

@@ -76,6 +76,31 @@ function StepPersonal() {
           Don&apos;t worry — we&apos;ll start lower and build up gently.
         </p>
       </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-3">
+          What's the longest daily session you'd ever want?
+        </label>
+        <div className="grid grid-cols-5 gap-2">
+          {[60, 90, 120, 180, 240].map((d) => (
+            <button
+              key={d}
+              onClick={() => dispatch({ type: 'UPDATE_DRAFT', draft: { maxRhythm: d } })}
+              className={cn(
+                'h-12 rounded-2xl text-sm font-semibold transition-all border',
+                draft.maxRhythm === d
+                  ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                  : 'bg-card text-foreground border-border hover:border-primary/40',
+              )}
+            >
+              {d >= 60 ? `${d / 60}h${d % 60 ? ` ${d % 60}m` : ''}` : `${d}m`}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          A calm ceiling. Brick will never push you past this — even on great days.
+        </p>
+      </div>
     </div>
   )
 }

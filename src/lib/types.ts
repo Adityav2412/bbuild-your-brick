@@ -12,6 +12,10 @@ export type Screen =
 
 export type SessionFeedback = 'easy' | 'comfortable' | 'difficult' | 'couldnt-finish'
 
+export type EnergyLevel = 'good' | 'okay' | 'low'
+
+export type LectureDifficulty = 'easy' | 'moderate' | 'heavy'
+
 export interface User {
   name: string
   examName: string
@@ -20,6 +24,8 @@ export interface User {
   comfortableMinutes: number
   /** Current daily target set by the psychology engine */
   currentCapacity: number
+  /** Hard ceiling — the rhythm engine will never grow past this */
+  maxRhythm: number
   lastStudyDate: string | null
   onboardingComplete: boolean
   totalSessions: number
@@ -33,8 +39,16 @@ export interface User {
   capacityHistory?: { date: string; capacity: number }[]
   /** When true the adaptive engine is cooling down after consecutive difficult sessions */
   progressionPaused?: boolean
-  /** Short note from the mentor after the last feedback (e.g. "Easing things down a touch.") */
+  /** Short note from the mentor after the last feedback */
   lastMentorNote?: string | null
+  /** Today's energy check-in (set once per day) */
+  todayEnergy?: EnergyLevel | null
+  /** ISO date of the last energy check-in */
+  energyDate?: string | null
+  /** True after a long absence — surfaces a gentle recovery onboarding */
+  recoveryMode?: boolean
+  /** Optional internal effort score used for weighted house growth (sessions are still the visible brick count) */
+  houseEffortScore?: number
 }
 
 export interface Lecture {
@@ -44,6 +58,8 @@ export interface Lecture {
   status: 'pending' | 'completed'
   completedDate?: string
   watchedMinutes: number
+  /** Optional. Used to weight scheduling — heavy lectures consume more rhythm. */
+  difficulty?: LectureDifficulty
 }
 
 export type SubjectColor = 'lavender' | 'sage' | 'amber' | 'sky' | 'rose' | 'emerald'

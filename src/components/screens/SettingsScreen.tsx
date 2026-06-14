@@ -22,7 +22,7 @@ import { useStore } from '@/lib/store'
 import { formatMinutes } from '@/lib/algorithm'
 import { SUBJECT_COLORS, SUBJECT_ICONS } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
-import type { SubjectColor } from '@/lib/types'
+import type { SubjectColor, LectureDifficulty } from '@/lib/types'
 
 function makeId() {
   return Math.random().toString(36).slice(2)
@@ -285,6 +285,23 @@ function SubjectManager() {
     })
   }
 
+  const cycleDifficulty = (subjectId: string, lectureId: string) => {
+    const sub = subjects.find((s) => s.id === subjectId)
+    if (!sub) return
+    const cycle: (LectureDifficulty | undefined)[] = [undefined, 'easy', 'moderate', 'heavy']
+    dispatch({
+      type: 'UPDATE_SUBJECT',
+      subject: {
+        ...sub,
+        lectures: sub.lectures.map((l) => {
+          if (l.id !== lectureId) return l
+          const i = cycle.indexOf(l.difficulty)
+          return { ...l, difficulty: cycle[(i + 1) % cycle.length] }
+        }),
+      },
+    })
+  }
+
   const deleteSubject = (id: string) => {
     dispatch({ type: 'DELETE_SUBJECT', subjectId: id })
     setShowDeleteConfirm(null)
@@ -371,7 +388,18 @@ function SubjectManager() {
                     Lectures ({subject.lectures.length})
                   </label>
                   <div className="flex flex-col gap-1.5">
-                    {subject.lectures.map((lec, i) => (
+                    {subject.lectures.map((lec, i) => {
+                      const diffLabel: Record<LectureDifficulty, string> = {
+                        easy: 'Easy',
+                        moderate: 'Med',
+                        heavy: 'Heavy',
+                      }
+                      const diffStyle: Record<LectureDifficulty, string> = {
+                        easy: 'bg-success/15 text-success',
+                        moderate: 'bg-muted text-foreground',
+                        heavy: 'bg-warning/20 text-warning-foreground',
+                      }
+                      return (
                       <div
                         key={lec.id}
                         className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2"
@@ -380,6 +408,18 @@ function SubjectManager() {
                           {i + 1}
                         </span>
                         <span className="flex-1 text-sm text-foreground truncate">{lec.name}</span>
+                        <button
+                          onClick={() => cycleDifficulty(subject.id, lec.id)}
+                          className={cn(
+                            'text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 transition-colors',
+                            lec.difficulty
+                              ? diffStyle[lec.difficulty]
+                              : 'bg-transparent text-muted-foreground/60 border border-dashed border-border',
+                          )}
+                          aria-label="Toggle lecture difficulty"
+                        >
+                          {lec.difficulty ? diffLabel[lec.difficulty] : '—'}
+                        </button>
                         <span className="text-xs text-muted-foreground shrink-0">
                           {lec.durationMinutes}m
                         </span>
@@ -396,7 +436,8 @@ function SubjectManager() {
                           </button>
                         )}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                   <button
                     onClick={() => addLecture(subject.id)}
