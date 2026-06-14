@@ -29,7 +29,7 @@ import {
   notificationPermission,
   requestNotificationPermission,
 } from '@/lib/reminders'
-import { useEffect as useReactEffect } from 'react'
+
 import { formatMinutes } from '@/lib/algorithm'
 import { SUBJECT_COLORS, SUBJECT_ICONS } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
