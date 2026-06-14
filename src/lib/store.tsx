@@ -159,6 +159,9 @@ function reducer(state: AppState, action: Action): AppState {
         energyDate: null,
         recoveryMode: false,
         houseEffortScore: 0,
+        houseProgressFloor: 0,
+        houseFloorTotalMinutes: 0,
+        energyHistory: [],
       }
       const schedule = buildTodaySchedule(action.subjects, effectiveCapacity(user), state.sessions)
       return {
