@@ -776,3 +776,36 @@ export const SUBJECT_COLORS: import('./types').SubjectColor[] = [
 export const SUBJECT_ICONS: import('./types').SubjectIcon[] = [
   'atom', 'flask', 'calculator', 'globe', 'book', 'microscope', 'landmark', 'code',
 ]
+
+// ─── Lecture edit validation ─────────────────────────────────────────────────
+// Completed lectures are immutable. Pending lectures can be edited freely.
+// Partial-progress lectures can be edited but a duration shrink below the
+// already-watched minutes must be confirmed explicitly by the caller.
+import type { Lecture as _Lecture } from './types'
+export type LectureEditValidation =
+  | { ok: true }
+  | { ok: false; reason: 'completed-locked' | 'duration-below-watched'; message: string }
+
+export function validateLectureEdit(
+  lecture: _Lecture,
+  next: { durationMinutes?: number },
+): LectureEditValidation {
+  if (lecture.status === 'completed') {
+    return {
+      ok: false,
+      reason: 'completed-locked',
+      message: 'Completed lectures are locked to keep your progress honest.',
+    }
+  }
+  if (
+    next.durationMinutes !== undefined &&
+    next.durationMinutes < lecture.watchedMinutes
+  ) {
+    return {
+      ok: false,
+      reason: 'duration-below-watched',
+      message: `You've already studied ${lecture.watchedMinutes} minutes. Shrink confirmation required.`,
+    }
+  }
+  return { ok: true }
+}
