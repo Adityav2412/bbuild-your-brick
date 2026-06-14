@@ -210,11 +210,11 @@ function CapacityCard() {
   return (
     <div className="bg-card rounded-3xl border border-border px-4 py-4">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-foreground">Study Capacity</p>
-        <span className="text-sm font-bold text-primary">{formatMinutes(user.currentCapacity)}/day</span>
+        <p className="text-sm font-semibold text-foreground">Current Rhythm</p>
+        <span className="text-sm font-bold text-primary">{formatMinutes(user.currentCapacity)}</span>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Your mentor adjusts this automatically based on how each session feels. Rate your sessions honestly for the best experience.
+        Your rhythm adjusts automatically based on how your completed study sessions feel. Rate each session honestly so Brick can find your pace.
       </p>
     </div>
   )
