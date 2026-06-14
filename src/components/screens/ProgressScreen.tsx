@@ -18,28 +18,25 @@ const STAGE_ICONS: Record<string, string> = {
   complete: '★',
 }
 
-function ObservatoryTimeline({ level }: { level: number }) {
+function HouseTimeline({ level, totalBricks }: { level: number; totalBricks: number }) {
   return (
     <div className="relative">
-      {/* Vertical line */}
       <div className="absolute left-[18px] top-4 bottom-4 w-px bg-border" />
-
       <div className="flex flex-col gap-1">
-        {RESTORATION_STAGES.map((stage, i) => {
+        {HOUSE_STAGES.map((stage, i) => {
           const isCompleted = i <= level
           const isCurrent = i === level
           return (
             <div
-              key={i}
+              key={stage.key}
               className={cn(
                 'flex items-center gap-3 px-2 py-2 rounded-xl transition-all',
                 isCurrent && 'bg-primary/8'
               )}
             >
-              {/* Node */}
               <div
                 className={cn(
-                  'w-9 h-9 rounded-full flex items-center justify-center text-base shrink-0 z-10 border-2 transition-all',
+                  'w-9 h-9 rounded-full flex items-center justify-center shrink-0 z-10 border-2 transition-all',
                   isCompleted
                     ? isCurrent
                       ? 'bg-primary border-primary'
@@ -49,15 +46,18 @@ function ObservatoryTimeline({ level }: { level: number }) {
               >
                 <span
                   className={cn(
-                    'text-sm',
-                    !isCompleted && 'opacity-30'
+                    'text-sm leading-none',
+                    isCompleted
+                      ? isCurrent
+                        ? 'text-primary-foreground'
+                        : 'text-primary'
+                      : 'text-muted-foreground/40'
                   )}
                 >
-                  {stage.icon}
+                  {STAGE_ICONS[stage.key]}
                 </span>
               </div>
 
-              {/* Labels */}
               <div className="flex-1 min-w-0">
                 <p
                   className={cn(
@@ -81,17 +81,16 @@ function ObservatoryTimeline({ level }: { level: number }) {
                 </p>
               </div>
 
-              {/* Session marker */}
-              {i > 0 && i <= level && (
-                <span className="text-[10px] text-primary/60 font-medium shrink-0">
-                  Session {i}
-                </span>
-              )}
-              {i > 0 && i > level && (
-                <span className="text-[10px] text-muted-foreground/30 font-medium shrink-0">
-                  Session {i}
-                </span>
-              )}
+              <span
+                className={cn(
+                  'text-[10px] font-medium shrink-0',
+                  isCompleted ? 'text-primary/60' : 'text-muted-foreground/30'
+                )}
+              >
+                {stage.bricksRequired === 0
+                  ? 'Start'
+                  : `${totalBricks >= stage.bricksRequired ? '✓ ' : ''}${stage.bricksRequired} bricks`}
+              </span>
             </div>
           )
         })}
@@ -108,7 +107,7 @@ export default function ProgressScreen() {
 
   if (!user) return null
 
-  const obs = getObservatoryState(user.totalSessions)
+  const house = getHouseState(user.totalSessions)
 
   // Last 7 days study data
   const last7 = Array.from({ length: 7 }).map((_, i) => {
