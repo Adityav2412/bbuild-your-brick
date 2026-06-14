@@ -396,14 +396,78 @@ export interface HouseState {
   description: string
 }
 
+export interface SyllabusProgress {
+  /** Sum of watchedMinutes across every lecture (capped per lecture). */
+  completedMinutes: number
+  /** Sum of every lecture's durationMinutes. */
+  totalMinutes: number
+}
+
 /**
- * @param totalSessions  Visible brick count (one per completed session).
- * @param effortScore    Optional internal weighted score for finer-grained
- *                       progression within a stage. Pass `undefined` to fall
- *                       back to brick count only.
+ * Compute the House of Knowledge state.
+ *
+ * The house represents OVERALL SYLLABUS COMPLETION (not session count) when
+ * syllabus progress is provided. Brick count remains visible — it's how
+ * Brick celebrates each placed brick — but stage transitions are driven by
+ * how much of the syllabus the student has actually completed.
+ *
+ * Back-compat: if `syllabus` is omitted, stage progression falls back to the
+ * old brick-count thresholds.
  */
-export function getHouseState(totalSessions: number, effortScore?: number): HouseState {
+export function getHouseState(
+  totalSessions: number,
+  effortScore?: number,
+  syllabus?: SyllabusProgress,
+): HouseState {
   const bricks = Math.max(0, totalSessions)
+
+  // ── Syllabus-driven progression ───────────────────────────────────────────
+  if (syllabus && syllabus.totalMinutes > 0) {
+    const fractionRaw = syllabus.completedMinutes / syllabus.totalMinutes
+    // Allow fraction > 1 so long-term expansions can unlock for users who
+    // continue past 100% (rare, but possible with repeated practice).
+    const fraction = Math.max(0, fractionRaw)
+
+    let level = 0
+    for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
+      if (fraction >= HOUSE_STAGES[i].fractionRequired) {
+        level = i
+        break
+      }
+    }
+    const stage = HOUSE_STAGES[level]
+    const nextStage = HOUSE_STAGES[level + 1] ?? null
+    const stageSpan = nextStage
+      ? nextStage.fractionRequired - stage.fractionRequired
+      : 0
+    const stageFraction =
+      stageSpan > 0
+        ? Math.min(1, Math.max(0, (fraction - stage.fractionRequired) / stageSpan))
+        : 1
+    // Bricks-to-next now means "how much more syllabus" — translate to bricks
+    // as a soft hint using the user's average minutes-per-brick.
+    const avgMinPerBrick = bricks > 0 ? syllabus.completedMinutes / bricks : 30
+    const minutesToNext = nextStage
+      ? Math.max(0, (nextStage.fractionRequired - fraction) * syllabus.totalMinutes)
+      : 0
+    const bricksToNext = nextStage
+      ? Math.max(1, Math.ceil(minutesToNext / Math.max(15, avgMinPerBrick)))
+      : 0
+
+    return {
+      bricks,
+      level,
+      stage,
+      nextStage,
+      bricksToNext,
+      stageFraction,
+      fraction: Math.min(1, fraction),
+      recentRestoration: bricks > 0 ? `+1 brick placed` : null,
+      description: stage.description,
+    }
+  }
+
+  // ── Fallback: brick-count progression (legacy) ────────────────────────────
   let level = 0
   for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
     if (bricks >= HOUSE_STAGES[i].bricksRequired) {
@@ -414,10 +478,6 @@ export function getHouseState(totalSessions: number, effortScore?: number): Hous
   const stage = HOUSE_STAGES[level]
   const nextStage = HOUSE_STAGES[level + 1] ?? null
   const bricksToNext = nextStage ? Math.max(0, nextStage.bricksRequired - bricks) : 0
-
-  // Stage fraction: use the effort score if provided, otherwise fall back to
-  // bricks. Either way it stays bounded by the stage span so the visible
-  // brick number is still the source of truth for stage transitions.
   const stageSpan = nextStage ? nextStage.bricksRequired - stage.bricksRequired : 1
   let withinFromBricks = nextStage ? bricks - stage.bricksRequired : stageSpan
   if (effortScore !== undefined && nextStage) {
@@ -425,7 +485,7 @@ export function getHouseState(totalSessions: number, effortScore?: number): Hous
     withinFromBricks = Math.min(stageSpan, Math.max(withinFromBricks, effortScore - baseEffort))
   }
   const stageFraction = stageSpan > 0 ? Math.min(1, withinFromBricks / stageSpan) : 1
-  const totalBricksForFull = HOUSE_STAGES[6].bricksRequired // base house only
+  const totalBricksForFull = HOUSE_STAGES[6].bricksRequired
   const fraction = Math.min(1, bricks / totalBricksForFull)
 
   return {
@@ -439,6 +499,19 @@ export function getHouseState(totalSessions: number, effortScore?: number): Hous
     recentRestoration: bricks > 0 ? `+1 brick placed` : null,
     description: stage.description,
   }
+}
+
+/** Aggregate completed vs. total minutes across the syllabus. */
+export function getSyllabusProgress(subjects: Subject[]): SyllabusProgress {
+  let completed = 0
+  let total = 0
+  for (const s of subjects) {
+    for (const l of s.lectures) {
+      total += l.durationMinutes
+      completed += Math.min(l.watchedMinutes, l.durationMinutes)
+    }
+  }
+  return { completedMinutes: completed, totalMinutes: total }
 }
 
 /** Effort score: each session contributes 1 + a small bonus per 30 minutes. */
