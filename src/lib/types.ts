@@ -79,6 +79,8 @@ export interface Subject {
   color: SubjectColor
   icon: SubjectIcon
   lectures: Lecture[]
+  /** Archived subjects are kept (with full history) but excluded from active rotation. */
+  archived?: boolean
 }
 
 export interface StudySessionRecord {
