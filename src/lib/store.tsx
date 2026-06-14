@@ -26,6 +26,7 @@ import {
   SUBJECT_COLORS,
   SUBJECT_ICONS,
 } from './algorithm'
+import { startReminderScheduler, stopReminderScheduler } from './reminders'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -585,6 +586,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     setHydrated(true)
   }, [])
+
+  useEffect(() => {
+    startReminderScheduler()
+    return () => stopReminderScheduler()
+  }, [])
+
 
 
   useEffect(() => {

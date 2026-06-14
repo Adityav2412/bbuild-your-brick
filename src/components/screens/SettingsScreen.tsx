@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   User,
   BookOpen,
@@ -23,6 +23,13 @@ import {
 import { useTheme, type ThemeMode } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { useStore, exportBackup, importBackup } from '@/lib/store'
+import {
+  getReminderSettings,
+  setReminderSettings,
+  notificationPermission,
+  requestNotificationPermission,
+} from '@/lib/reminders'
+
 import { formatMinutes } from '@/lib/algorithm'
 import { SUBJECT_COLORS, SUBJECT_ICONS } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
@@ -563,6 +570,112 @@ function SubjectManager() {
   )
 }
 
+// ─── Reminders ─────────────────────────────────────────────────────────────
+
+function RemindersCard() {
+  const [settings, setSettingsState] = useState(() => getReminderSettings())
+  const [perm, setPerm] = useState<NotificationPermission | 'unsupported'>('default')
+
+  useEffect(() => {
+    setPerm(notificationPermission())
+  }, [])
+
+  const update = (next: Partial<typeof settings>) => {
+    const merged = { ...settings, ...next }
+    setSettingsState(merged)
+    setReminderSettings(merged)
+  }
+
+  const toggleEnabled = async () => {
+    if (!settings.enabled) {
+      const p = await requestNotificationPermission()
+      setPerm(p)
+      if (p !== 'granted') return
+      update({ enabled: true })
+    } else {
+      update({ enabled: false })
+    }
+  }
+
+  const timeOptions = ['07:00', '08:00', '12:00', '17:00', '19:00', '20:00', '21:00', '22:00']
+
+  const unsupported = perm === 'unsupported'
+  const denied = perm === 'denied'
+
+  return (
+    <div className="bg-card rounded-3xl border border-border px-4 py-4">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-sm font-semibold text-foreground">Daily Reminder</p>
+        <button
+          onClick={toggleEnabled}
+          disabled={unsupported || denied}
+          aria-pressed={settings.enabled}
+          className={cn(
+            'w-11 h-6 rounded-full relative transition-colors',
+            settings.enabled ? 'bg-primary' : 'bg-muted',
+            (unsupported || denied) && 'opacity-50 cursor-not-allowed',
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.5 w-5 h-5 bg-card rounded-full shadow-sm transition-transform',
+              settings.enabled ? 'translate-x-5' : 'translate-x-0.5',
+            )}
+          />
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+        A single, gentle mentor nudge at your preferred study time. Maximum three a day. Never streaks. Never guilt.
+      </p>
+
+      {settings.enabled && (
+        <div>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Preferred time
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {timeOptions.map((t) => {
+              const active = settings.time === t
+              return (
+                <button
+                  key={t}
+                  onClick={() => update({ time: t })}
+                  className={cn(
+                    'h-9 rounded-xl text-xs font-medium transition-colors',
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-background border border-border text-foreground',
+                  )}
+                >
+                  {formatClockTime(t)}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {denied && (
+        <p className="text-xs text-muted-foreground mt-3">
+          Notifications are blocked for this site. Enable them in your browser settings to receive reminders.
+        </p>
+      )}
+      {unsupported && (
+        <p className="text-xs text-muted-foreground mt-3">
+          This device or browser does not support notifications.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function formatClockTime(t: string): string {
+  const [hh, mm] = t.split(':').map((n) => parseInt(n, 10))
+  const period = hh >= 12 ? 'PM' : 'AM'
+  const h12 = ((hh + 11) % 12) + 1
+  return `${h12}${mm ? `:${mm.toString().padStart(2, '0')}` : ''} ${period}`
+}
+
 // ─── Appearance ────────────────────────────────────────────────────────────
 
 function AppearanceCard() {
@@ -771,23 +884,15 @@ export default function SettingsScreen() {
           <AppearanceCard />
         </section>
 
-        {/* Notifications placeholder */}
+        {/* Reminders */}
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Bell size={14} className="text-muted-foreground" />
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Notifications
+              Reminders
             </h2>
           </div>
-          <div className="bg-card rounded-3xl border border-border px-4 py-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Daily Reminders</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Coming soon</p>
-            </div>
-            <div className="w-11 h-6 rounded-full bg-muted relative">
-              <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow-sm" />
-            </div>
-          </div>
+          <RemindersCard />
         </section>
 
         {/* Backup */}
