@@ -6,11 +6,14 @@ import {
   getGreeting,
   getMentorMessage,
   getHouseState,
+  getSyllabusProgress,
+  getHouseScale,
   formatMinutes,
   daysAway,
   adjustCapacityForEnergy,
 } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
+import CompanionAvatar from '@/components/CompanionAvatar'
 import type { EnergyLevel } from '@/lib/types'
 
 // ─── House of Knowledge Illustration ──────────────────────────────────────────
