@@ -558,7 +558,7 @@ export default function SettingsScreen() {
         <section className="pb-4">
           <ResetButton />
           <p className="text-center text-xs text-muted-foreground mt-4">
-            StudyCoach v2.0
+            Brick v1.0
           </p>
         </section>
       </div>

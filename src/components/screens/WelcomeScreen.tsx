@@ -22,7 +22,7 @@ const slides = [
       </div>
     ),
     heading: 'Study smarter,\nnot harder.',
-    body: 'StudyCoach is a recovery-first system built around your energy — not a rigid schedule.',
+    body: 'Brick is a recovery-first study mentor built around your energy — not a rigid schedule.',
   },
   {
     illustration: (
@@ -50,7 +50,7 @@ const slides = [
       </div>
     ),
     heading: 'Built for recovery,\nnot perfection.',
-    body: 'No guilt. No streaks to maintain. Just gentle, consistent progress that fits your life.',
+    body: 'No guilt. No streaks. Just gentle, consistent progress — one brick at a time.',
   },
   {
     illustration: (
