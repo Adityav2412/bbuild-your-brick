@@ -87,9 +87,9 @@ function HouseTimeline({ level }: { level: number }) {
                   isCompleted ? 'text-primary/60' : 'text-muted-foreground/30'
                 )}
               >
-                {stage.bricksRequired === 0
+                {stage.fractionRequired === 0
                   ? 'Start'
-                  : `${totalBricks >= stage.bricksRequired ? '✓ ' : ''}${stage.bricksRequired} bricks`}
+                  : `${isCompleted ? '✓ ' : ''}${Math.round(stage.fractionRequired * 100)}%`}
               </span>
             </div>
           )
