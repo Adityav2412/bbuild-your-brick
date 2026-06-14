@@ -46,6 +46,7 @@ function AppRouter() {
       {screen === 'progress' && <ProgressScreen />}
       {screen === 'settings' && <SettingsScreen />}
       {screen === 'welcome-back' && <WelcomeBackScreen />}
+      {screen === 'recovery' && <RecoveryScreen />}
       <BottomNav />
       <FeedbackModal />
     </div>
