@@ -455,41 +455,33 @@ export function getLectureById(
 }
 
 export function makeSampleSubjects(): Subject[] {
-  const colors: SubjectColor[] = ['lavender', 'rose', 'amber', 'sky']
-  const icons: SubjectIcon[] = ['atom', 'flask', 'calculator', 'globe']
+  const colors: SubjectColor[] = ['lavender', 'sage', 'amber']
+  const icons: SubjectIcon[] = ['calculator', 'book', 'globe']
   const data = [
     {
-      name: 'Physics',
+      name: 'Maths',
       lectures: [
-        { name: 'Lecture 1 – Kinematics', dur: 45 },
-        { name: 'Lecture 2 – Newton\'s Laws', dur: 38 },
-        { name: 'Lecture 3 – Work & Energy', dur: 42 },
+        { name: 'Lecture 1', dur: 45 },
+        { name: 'Lecture 2', dur: 52 },
+        { name: 'Lecture 3', dur: 38 },
       ],
     },
     {
-      name: 'Chemistry',
+      name: 'Reasoning',
       lectures: [
-        { name: 'Lecture 1 – Atomic Structure', dur: 52 },
-        { name: 'Lecture 2 – Periodic Table', dur: 35 },
-        { name: 'Lecture 3 – Chemical Bonding', dur: 48 },
-      ],
-    },
-    {
-      name: 'Mathematics',
-      lectures: [
-        { name: 'Lecture 1 – Limits', dur: 40 },
-        { name: 'Lecture 2 – Derivatives', dur: 45 },
-        { name: 'Lecture 3 – Integrals', dur: 55 },
+        { name: 'Lecture 1', dur: 42 },
+        { name: 'Lecture 2', dur: 35 },
       ],
     },
     {
       name: 'English',
       lectures: [
-        { name: 'Lecture 1 – Essay Writing', dur: 30 },
-        { name: 'Lecture 2 – Reading Comprehension', dur: 25 },
+        { name: 'Lecture 1', dur: 35 },
+        { name: 'Lecture 2', dur: 28 },
       ],
     },
   ]
+
 
   return data.map((s, i) => ({
     id: makeId(),
