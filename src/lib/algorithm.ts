@@ -462,15 +462,6 @@ export function getHouseState(
   totalSessions: number,
   effortScore?: number,
   syllabus?: SyllabusProgress,
-): HouseState {
-  const bricks = Math.max(0, totalSessions)
-
-  // ── Syllabus-driven progression ───────────────────────────────────────────
-  if (syllabus && syllabus.totalMinutes > 0) {
-export function getHouseState(
-  totalSessions: number,
-  effortScore?: number,
-  syllabus?: SyllabusProgress,
   floor?: HouseFloor,
 ): HouseState {
   const bricks = Math.max(0, totalSessions)
