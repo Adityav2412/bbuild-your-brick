@@ -275,21 +275,42 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'SUBMIT_FEEDBACK': {
       if (!state.user) return { ...state, pendingFeedback: null }
-      const { newCapacity, updatedFeedback } = applyFeedbackToCapacity(
+
+      // Find capacity from ~7 days ago for the 10%/week growth cap
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      const history = state.user.capacityHistory ?? []
+      const past = [...history]
+        .filter((h) => new Date(h.date).getTime() <= sevenDaysAgo.getTime())
+        .pop()
+      const capacity7DaysAgo = past?.capacity ?? state.user.comfortableMinutes
+
+      const result = applyFeedbackToCapacity(
         state.user.currentCapacity,
         state.user.comfortableMinutes,
         state.user.recentFeedback,
-        action.feedback
+        action.feedback,
+        capacity7DaysAgo,
       )
+
+      const today = todayString()
+      const newHistory = [
+        ...history.filter((h) => h.date !== today),
+        { date: today, capacity: result.newCapacity },
+      ].slice(-30)
+
       const updatedUser: User = {
         ...state.user,
-        currentCapacity: newCapacity,
-        recentFeedback: updatedFeedback,
+        currentCapacity: result.newCapacity,
+        recentFeedback: result.updatedFeedback,
+        capacityHistory: newHistory,
+        progressionPaused: result.progressionPaused,
+        lastMentorNote: result.note,
       }
       const updatedSessions = state.sessions.map((s) =>
         s.id === action.sessionId ? { ...s, feedback: action.feedback } : s
       )
-      const schedule = buildTodaySchedule(state.subjects, newCapacity)
+      const schedule = buildTodaySchedule(state.subjects, result.newCapacity, updatedSessions)
       return {
         ...state,
         user: updatedUser,
