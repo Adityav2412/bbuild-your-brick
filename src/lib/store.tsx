@@ -348,7 +348,8 @@ const StoreContext = createContext<{
   dispatch: React.Dispatch<Action>
 } | null>(null)
 
-const STORAGE_KEY = 'studycoach_v2'
+const STORAGE_KEY = 'brick_v1'
+const LEGACY_STORAGE_KEY = 'studycoach_v2'
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
@@ -356,20 +357,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const stored =
+        localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY)
       if (stored) {
         const parsed = JSON.parse(stored) as AppState
         if (parsed.user?.onboardingComplete) {
-          // Backfill missing fields for existing users upgrading from v1
-          if (!parsed.user.recentFeedback) {
-            parsed.user.recentFeedback = []
+          // Backfill missing fields for users coming from older versions
+          if (!parsed.user.recentFeedback) parsed.user.recentFeedback = []
+          if (parsed.user.avatarUrl === undefined) parsed.user.avatarUrl = null
+          if (!parsed.user.capacityHistory) parsed.user.capacityHistory = []
+          if (parsed.user.progressionPaused === undefined) parsed.user.progressionPaused = false
+          if (parsed.user.lastMentorNote === undefined) parsed.user.lastMentorNote = null
+
+          // Gentle recovery: if the student was away for a few days, ease
+          // today's capacity. Never penalise, never reset.
+          const away = daysAway(parsed.user.lastStudyDate)
+          if (away >= 3) {
+            const eased = easedCapacityAfterGap(
+              parsed.user.currentCapacity,
+              parsed.user.comfortableMinutes,
+              away,
+            )
+            parsed.user.currentCapacity = eased
+            parsed.user.lastMentorNote = "Welcome back. Let's start gently."
           }
-          if (parsed.user.avatarUrl === undefined) {
-            parsed.user.avatarUrl = null
-          }
+
           const schedule = buildTodaySchedule(
             parsed.subjects ?? [],
-            parsed.user.currentCapacity
+            parsed.user.currentCapacity,
+            parsed.sessions ?? [],
           )
           const longGap = isLongGap(parsed.user.lastStudyDate)
           dispatch({
@@ -387,10 +403,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (e) {
-      console.error('[StudyCoach] Hydration error:', e)
+      console.error('[Brick] Hydration error:', e)
     }
     setHydrated(true)
   }, [])
+
 
   useEffect(() => {
     if (!hydrated) return
