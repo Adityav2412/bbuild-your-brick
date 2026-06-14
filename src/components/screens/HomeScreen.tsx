@@ -387,7 +387,12 @@ export default function HomeScreen() {
         <div className="flex items-center justify-between px-4 py-3 bg-card rounded-2xl border border-border">
           <p className="text-sm text-muted-foreground">Today&apos;s Rhythm</p>
           <p className="text-sm font-semibold text-foreground">
-            {formatMinutes(user.currentCapacity)}
+            {formatMinutes(effectiveRhythm)}
+            {todayEnergy && todayEnergy !== 'good' && effectiveRhythm !== user.currentCapacity && (
+              <span className="ml-2 text-xs text-muted-foreground font-normal">
+                ({todayEnergy === 'low' ? 'low energy' : 'okay'})
+              </span>
+            )}
           </p>
         </div>
 
