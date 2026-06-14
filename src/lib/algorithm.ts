@@ -467,10 +467,28 @@ export function getHouseState(
 
   // ── Syllabus-driven progression ───────────────────────────────────────────
   if (syllabus && syllabus.totalMinutes > 0) {
+export function getHouseState(
+  totalSessions: number,
+  effortScore?: number,
+  syllabus?: SyllabusProgress,
+  floor?: HouseFloor,
+): HouseState {
+  const bricks = Math.max(0, totalSessions)
+
+  // ── Syllabus-driven progression ───────────────────────────────────────────
+  if (syllabus && syllabus.totalMinutes > 0) {
     const fractionRaw = syllabus.completedMinutes / syllabus.totalMinutes
-    // Allow fraction > 1 so long-term expansions can unlock for users who
-    // continue past 100% (rare, but possible with repeated practice).
-    const fraction = Math.max(0, fractionRaw)
+    // The visible house never decreases — apply the floor.
+    const floorFraction = floor?.fraction ?? 0
+    const fraction = Math.max(0, fractionRaw, floorFraction)
+    const expansion =
+      !!floor &&
+      floor.totalMinutes > 0 &&
+      syllabus.totalMinutes > floor.totalMinutes &&
+      fractionRaw < floorFraction
+    const expansionMinutes = expansion
+      ? Math.max(0, syllabus.totalMinutes - floor.totalMinutes)
+      : 0
 
     let level = 0
     for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
@@ -488,8 +506,6 @@ export function getHouseState(
       stageSpan > 0
         ? Math.min(1, Math.max(0, (fraction - stage.fractionRequired) / stageSpan))
         : 1
-    // Bricks-to-next now means "how much more syllabus" — translate to bricks
-    // as a soft hint using the user's average minutes-per-brick.
     const avgMinPerBrick = bricks > 0 ? syllabus.completedMinutes / bricks : 30
     const minutesToNext = nextStage
       ? Math.max(0, (nextStage.fractionRequired - fraction) * syllabus.totalMinutes)
@@ -508,6 +524,8 @@ export function getHouseState(
       fraction: Math.min(1, fraction),
       recentRestoration: bricks > 0 ? `+1 brick placed` : null,
       description: stage.description,
+      expansion,
+      expansionMinutes,
     }
   }
 
@@ -542,14 +560,17 @@ export function getHouseState(
     fraction,
     recentRestoration: bricks > 0 ? `+1 brick placed` : null,
     description: stage.description,
+    expansion: false,
+    expansionMinutes: 0,
   }
 }
 
-/** Aggregate completed vs. total minutes across the syllabus. */
+/** Aggregate completed vs. total minutes across the syllabus. Archived subjects are excluded. */
 export function getSyllabusProgress(subjects: Subject[]): SyllabusProgress {
   let completed = 0
   let total = 0
   for (const s of subjects) {
+    if (s.archived) continue
     for (const l of s.lectures) {
       total += l.durationMinutes
       completed += Math.min(l.watchedMinutes, l.durationMinutes)
