@@ -382,6 +382,36 @@ export default function HomeScreen() {
               </div>
             )}
           </div>
+        ) : syllabus.totalMinutes > 0 && syllabus.completedMinutes >= syllabus.totalMinutes ? (
+          <div className="bg-primary text-primary-foreground rounded-3xl p-6 flex flex-col gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-primary-foreground/60">
+                Journey Complete
+              </p>
+              <h2 className="font-bold text-2xl mt-1 leading-tight">
+                Your home is built.
+              </h2>
+              <p className="text-sm text-primary-foreground/80 mt-1">
+                Every brick placed. Every lecture finished. Take a breath — you earned it.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-white/10 px-3 py-2.5">
+                <p className="text-[10px] uppercase tracking-wide text-primary-foreground/60">Lectures</p>
+                <p className="font-bold text-lg">{syllabus.completedLectures}</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 px-3 py-2.5">
+                <p className="text-[10px] uppercase tracking-wide text-primary-foreground/60">Total minutes</p>
+                <p className="font-bold text-lg">{user.totalMinutes}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => dispatch({ type: 'NAVIGATE', screen: 'settings' })}
+              className="w-full h-11 rounded-2xl bg-white/15 hover:bg-white/20 transition-colors text-sm font-semibold"
+            >
+              Add new subjects to expand your home
+            </button>
+          </div>
         ) : (
           <div className="bg-card rounded-3xl border border-border p-6 text-center">
             <p className="font-semibold text-foreground mb-1">All done for today</p>
