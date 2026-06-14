@@ -232,7 +232,9 @@ function CapacityCard() {
 
 function SubjectManager() {
   const { state, dispatch } = useStore()
-  const { subjects } = state
+  const { subjects: allSubjects } = state
+  const subjects = allSubjects.filter((s) => !s.archived)
+  const archivedSubjects = allSubjects.filter((s) => s.archived)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
