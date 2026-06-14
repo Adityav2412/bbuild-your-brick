@@ -356,12 +356,28 @@ const MENTOR_POOLS = {
     'You\u2019re moving well. Keep the same calm pace.',
     'Easy days are gifts. Receive them.',
   ],
+  houseMilestone: [
+    'A new stage of your home is taking shape.',
+    'Look up — the home has changed today.',
+    'The work shows. Quietly, the home grew.',
+  ],
   general: GENERAL_MESSAGES,
 }
 
 function pickFromPool(pool: string[], seed: number): string {
   if (pool.length === 0) return ''
   return pool[Math.abs(seed) % pool.length]
+}
+
+// Stage-specific mentor lines. Spoken once when the user just crossed into a new stage.
+const STAGE_LINES: Partial<Record<HouseStage['key'], string>> = {
+  'foundation-complete': 'The foundation is set. The home has its footing.',
+  'walls-rising':        'One more session and the first wall will rise higher.',
+  'window':              'A window appeared. Light enters the home.',
+  'door':                'A door now opens. The home is yours to step into.',
+  'roof-framework':      'The roof beams are up. Shelter is forming overhead.',
+  'roof-complete':       'The roof is complete. The home is sealed and quiet.',
+  'finished-home':       'The home is finished. Built slowly. Built by you.',
 }
 
 export function getMentorMessage(
