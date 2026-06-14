@@ -454,6 +454,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (parsed.user?.onboardingComplete) {
           // Backfill missing fields for users from older versions
           if (!parsed.user.recentFeedback) parsed.user.recentFeedback = []
+          if (parsed.user.confidenceScore === undefined) parsed.user.confidenceScore = 0
           if (parsed.user.avatarUrl === undefined) parsed.user.avatarUrl = null
           if (!parsed.user.capacityHistory) parsed.user.capacityHistory = []
           if (parsed.user.progressionPaused === undefined) parsed.user.progressionPaused = false
