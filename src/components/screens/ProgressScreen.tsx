@@ -18,7 +18,7 @@ const STAGE_ICONS: Record<string, string> = {
   complete: '★',
 }
 
-function HouseTimeline({ level, totalBricks }: { level: number; totalBricks: number }) {
+function HouseTimeline({ level }: { level: number }) {
   return (
     <div className="relative">
       <div className="absolute left-[18px] top-4 bottom-4 w-px bg-border" />
