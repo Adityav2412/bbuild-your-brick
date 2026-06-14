@@ -17,98 +17,122 @@ import CompanionAvatar from '@/components/CompanionAvatar'
 import type { EnergyLevel } from '@/lib/types'
 
 // ─── House of Knowledge Illustration ──────────────────────────────────────────
-// Each completed session places one brick. The home evolves visually as the
-// student's consistency grows.
+// The home is built physically, stage by stage. Each level reveals a new piece
+// of the structure — never a static bar.
 //
-// Stages: 0 Foundation, 1 Walls, 2 Windows, 3 Door, 4 Roof, 5 Garden, 6 Complete
+// Stage map (matches HOUSE_STAGES in algorithm.ts):
+//   0 Foundation             — ground only
+//   1 Foundation Complete    — full base poured
+//   2 Walls Rising           — partial brick walls (animates by stageFraction)
+//   3 Window Appears         — full walls + first window
+//   4 Door Appears           — door cut in
+//   5 Roof Framework         — beams overhead, no covering yet
+//   6 Roof Complete          — solid roof + chimney
+//   7 Finished Home          — lit windows, garden, fully built
 
-function HouseIllustration({ level, bricks }: { level: number; bricks: number }) {
-  const showWalls = level >= 1
-  const showWindows = level >= 2
-  const showDoor = level >= 3
-  const showRoof = level >= 4
-  const showGarden = level >= 5
-  const isComplete = level >= 6
+function HouseIllustration({
+  level,
+  bricks,
+  stageFraction,
+}: {
+  level: number
+  bricks: number
+  stageFraction: number
+}) {
+  // What is visible at each stage
+  const showFoundationBase  = level >= 0
+  const showFoundationFull  = level >= 1
+  const showWalls           = level >= 2
+  const wallsFullyBuilt     = level >= 3
+  const showWindow          = level >= 3
+  const showDoor            = level >= 4
+  const showRoofFrame       = level >= 5
+  const showRoofSolid       = level >= 6
+  const isFinished          = level >= 7
 
-  // Animate the most recently placed brick on the front wall
-  const wallBricks = Math.min(bricks, 18)
+  // How "tall" the walls are during stage 2 — they grow with stageFraction.
+  const wallRowsTarget = 6
+  const wallRows = wallsFullyBuilt
+    ? wallRowsTarget
+    : level === 2
+      ? Math.max(1, Math.round(stageFraction * wallRowsTarget))
+      : 0
+
+  // Latest placed brick — small animated highlight
+  const latestBrickIdx = Math.max(0, Math.min(bricks - 1, wallRows * 3 - 1))
 
   return (
     <svg viewBox="0 0 100 80" className="w-full h-full" aria-hidden="true">
-      {/* Ground line — the foundation is always there */}
+      {/* Ground line — always present */}
       <line x1="6" y1="72" x2="94" y2="72" stroke="#E8D9B8" strokeWidth="1.2" />
-      <rect x="22" y="70" width="56" height="3" rx="0.6" fill="#C9B894" opacity="0.9" />
 
-      {/* Garden — soft grass tufts */}
-      {showGarden && (
-        <g opacity="0.9">
-          <path d="M14 72 q1 -4 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
-          <path d="M17 72 q1 -3 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
-          <path d="M82 72 q1 -4 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
-          <path d="M85 72 q1 -3 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
-          {/* A small tree */}
-          <rect x="10" y="64" width="1.5" height="8" fill="#7C5A3A" />
-          <circle cx="10.7" cy="62" r="4" fill="#4E8A5C" opacity="0.9" />
-        </g>
+      {/* Foundation — stage 0: outline only; stage 1+: full solid base */}
+      {showFoundationBase && !showFoundationFull && (
+        <rect
+          x="22" y="70" width="56" height="3" rx="0.6"
+          fill="none" stroke="#C9B894" strokeWidth="0.8" strokeDasharray="2 1.5"
+        />
+      )}
+      {showFoundationFull && (
+        <rect x="22" y="69" width="56" height="4" rx="0.6" fill="#C9B894" />
       )}
 
-      {/* Walls (rows of bricks) */}
+      {/* Walls (rows of bricks) — grow during Walls Rising, full by Window stage */}
       {showWalls && (
         <g>
-          <rect x="28" y="40" width="44" height="30" rx="1" fill="#D7A878" opacity="0.95" />
-          {/* Brick rows */}
-          {Array.from({ length: 6 }).map((_, row) => (
+          {/* Wall back-fill appears once walls are fully built so it doesn't show through partial bricks */}
+          {wallsFullyBuilt && (
+            <rect x="28" y="40" width="44" height="30" rx="1" fill="#D7A878" opacity="0.95" />
+          )}
+          {Array.from({ length: wallRows }).map((_, row) => (
             <g key={row}>
               {Array.from({ length: 3 }).map((_, col) => {
                 const idx = row * 3 + col
-                const isLatest = idx === wallBricks - 1
-                if (idx >= wallBricks) return null
+                const isLatest = idx === latestBrickIdx
                 const xOff = row % 2 === 0 ? 0 : 7
+                const y = 70 - (row + 1) * 4.5
                 return (
                   <rect
                     key={col}
                     x={29 + col * 14 + xOff}
-                    y={42 + row * 4.5}
+                    y={y}
                     width="13"
                     height="3.6"
                     rx="0.5"
                     fill="#B07A4E"
-                    opacity="0.85"
+                    opacity="0.9"
                     className={isLatest ? 'animate-brick-place' : undefined}
                   />
                 )
               })}
             </g>
           ))}
-          {/* Mortar outline */}
-          <rect
-            x="28"
-            y="40"
-            width="44"
-            height="30"
-            rx="1"
-            fill="none"
-            stroke="#8B5E3C"
-            strokeWidth="0.6"
-            opacity="0.5"
-          />
+          {wallsFullyBuilt && (
+            <rect x="28" y="40" width="44" height="30" rx="1"
+              fill="none" stroke="#8B5E3C" strokeWidth="0.6" opacity="0.5" />
+          )}
         </g>
       )}
 
-      {/* Windows */}
-      {showWindows && (
+      {/* Window — appears at stage 3, second window at stage 4+ */}
+      {showWindow && (
         <g>
-          <rect x="33" y="46" width="10" height="10" rx="1" fill="#F5E8A0" opacity="0.95" />
+          <rect x="33" y="46" width="10" height="10" rx="1"
+            fill={isFinished ? '#FFE9A6' : '#F5E8A0'} opacity="0.95" />
           <line x1="38" y1="46" x2="38" y2="56" stroke="#8B5E3C" strokeWidth="0.5" />
           <line x1="33" y1="51" x2="43" y2="51" stroke="#8B5E3C" strokeWidth="0.5" />
-
-          <rect x="57" y="46" width="10" height="10" rx="1" fill="#F5E8A0" opacity="0.95" />
-          <line x1="62" y1="46" x2="62" y2="56" stroke="#8B5E3C" strokeWidth="0.5" />
-          <line x1="57" y1="51" x2="67" y2="51" stroke="#8B5E3C" strokeWidth="0.5" />
+          {showDoor && (
+            <>
+              <rect x="57" y="46" width="10" height="10" rx="1"
+                fill={isFinished ? '#FFE9A6' : '#F5E8A0'} opacity="0.95" />
+              <line x1="62" y1="46" x2="62" y2="56" stroke="#8B5E3C" strokeWidth="0.5" />
+              <line x1="57" y1="51" x2="67" y2="51" stroke="#8B5E3C" strokeWidth="0.5" />
+            </>
+          )}
         </g>
       )}
 
-      {/* Door */}
+      {/* Door — appears at stage 4 */}
       {showDoor && (
         <g>
           <rect x="46" y="58" width="8" height="12" rx="1" fill="#6B4226" />
@@ -116,22 +140,36 @@ function HouseIllustration({ level, bricks }: { level: number; bricks: number })
         </g>
       )}
 
-      {/* Roof */}
-      {showRoof && (
+      {/* Roof framework — stage 5 only (beams, no covering) */}
+      {showRoofFrame && !showRoofSolid && (
+        <g>
+          <line x1="24" y1="42" x2="50" y2="24" stroke="#8B5E3C" strokeWidth="1" />
+          <line x1="50" y1="24" x2="76" y2="42" stroke="#8B5E3C" strokeWidth="1" />
+          <line x1="28" y1="40" x2="50" y2="28" stroke="#A88463" strokeWidth="0.5" />
+          <line x1="50" y1="28" x2="72" y2="40" stroke="#A88463" strokeWidth="0.5" />
+          <line x1="50" y1="24" x2="50" y2="40" stroke="#A88463" strokeWidth="0.5" />
+        </g>
+      )}
+
+      {/* Roof solid — stage 6+ */}
+      {showRoofSolid && (
         <g>
           <path d="M24 42 L50 24 L76 42 Z" fill="#2B4B3C" />
           <path d="M24 42 L50 24 L76 42 Z" fill="none" stroke="#1E3828" strokeWidth="0.6" />
-          {/* Chimney */}
           <rect x="62" y="28" width="4" height="8" fill="#8B5E3C" />
         </g>
       )}
 
-      {/* Completion shimmer */}
-      {isComplete && (
-        <g opacity="0.7">
-          <circle cx="20" cy="20" r="0.8" fill="#E8D98C" />
-          <circle cx="80" cy="16" r="0.8" fill="#E8D98C" />
-          <circle cx="50" cy="12" r="1" fill="#F5E8A0" />
+      {/* Finished — garden + warm window glow */}
+      {isFinished && (
+        <g opacity="0.95">
+          <path d="M14 72 q1 -4 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
+          <path d="M17 72 q1 -3 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
+          <path d="M82 72 q1 -4 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
+          <path d="M85 72 q1 -3 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
+          <rect x="10" y="64" width="1.5" height="8" fill="#7C5A3A" />
+          <circle cx="10.7" cy="62" r="4" fill="#4E8A5C" opacity="0.9" />
+          <circle cx="50" cy="14" r="1" fill="#F5E8A0" />
         </g>
       )}
     </svg>
@@ -169,7 +207,7 @@ function HouseCard() {
 
       {/* Illustration */}
       <div className="h-28 w-full">
-        <HouseIllustration level={house.level} bricks={house.bricks} />
+        <HouseIllustration level={house.level} bricks={house.bricks} stageFraction={house.stageFraction} />
       </div>
 
       {/* Progress bar */}
