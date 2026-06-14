@@ -526,6 +526,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (parsed.user.houseEffortScore === undefined) {
             parsed.user.houseEffortScore = computeEffortScore(parsed.sessions ?? [])
           }
+          if (parsed.user.energyHistory === undefined) parsed.user.energyHistory = []
+          if (parsed.user.houseProgressFloor === undefined) {
+            // Initialise the floor at the current syllabus completion so historic
+            // progress is preserved going forward.
+            const syll = getSyllabusProgress(parsed.subjects ?? [])
+            parsed.user.houseProgressFloor =
+              syll.totalMinutes > 0 ? syll.completedMinutes / syll.totalMinutes : 0
+            parsed.user.houseFloorTotalMinutes = syll.totalMinutes
+          }
 
           // Missed-day recovery — Brick eases the workload, never punishes.
           const away = daysAway(parsed.user.lastStudyDate)
