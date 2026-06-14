@@ -884,23 +884,15 @@ export default function SettingsScreen() {
           <AppearanceCard />
         </section>
 
-        {/* Notifications placeholder */}
+        {/* Reminders */}
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Bell size={14} className="text-muted-foreground" />
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Notifications
+              Reminders
             </h2>
           </div>
-          <div className="bg-card rounded-3xl border border-border px-4 py-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Daily Reminders</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Coming soon</p>
-            </div>
-            <div className="w-11 h-6 rounded-full bg-muted relative">
-              <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow-sm" />
-            </div>
-          </div>
+          <RemindersCard />
         </section>
 
         {/* Backup */}
