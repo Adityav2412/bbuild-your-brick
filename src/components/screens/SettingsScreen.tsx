@@ -22,7 +22,7 @@ import { useStore } from '@/lib/store'
 import { formatMinutes } from '@/lib/algorithm'
 import { SUBJECT_COLORS, SUBJECT_ICONS } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
-import type { SubjectColor } from '@/lib/types'
+import type { SubjectColor, LectureDifficulty } from '@/lib/types'
 
 function makeId() {
   return Math.random().toString(36).slice(2)
