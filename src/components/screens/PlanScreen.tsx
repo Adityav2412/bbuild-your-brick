@@ -3,7 +3,7 @@
 import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
-import { getHouseState, formatMinutes } from '@/lib/algorithm'
+import { getHouseState, getSyllabusProgress, getHouseScale, formatMinutes } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
 
 export default function PlanScreen() {
