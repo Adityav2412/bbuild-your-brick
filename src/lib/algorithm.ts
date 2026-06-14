@@ -397,6 +397,13 @@ export function getMentorMessage(
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
   const seed = dayOfYear + ctx.totalSessions
 
+  // House milestone takes priority — it's a one-time, contextual celebration.
+  if (ctx.houseStageJustChanged && ctx.houseStageKey) {
+    const line = STAGE_LINES[ctx.houseStageKey]
+    if (line) return line
+    return pickFromPool(MENTOR_POOLS.houseMilestone, seed)
+  }
+
   if (ctx.recoveryMode || ctx.daysSinceLastStudy >= 15) return pickFromPool(MENTOR_POOLS.recoveryLong, seed)
   if (ctx.daysSinceLastStudy >= 8) return pickFromPool(MENTOR_POOLS.recoveryMid, seed)
   if (ctx.daysSinceLastStudy >= 4) return pickFromPool(MENTOR_POOLS.recoveryShort, seed)
