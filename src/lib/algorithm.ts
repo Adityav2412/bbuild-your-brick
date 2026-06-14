@@ -349,6 +349,8 @@ export interface HouseStage {
   label: string
   description: string
   bricksRequired: number
+  /** Stage threshold expressed as syllabus completion fraction (0..1, or >1 for expansion stages). */
+  fractionRequired: number
   /** Bonus / expansion stages render with a softer tone */
   isExpansion?: boolean
 }
