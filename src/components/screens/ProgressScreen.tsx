@@ -3,24 +3,20 @@
 import { Clock, BookOpen, BarChart2, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
-import { formatMinutes, getObservatoryState } from '@/lib/algorithm'
+import { formatMinutes, getHouseState, HOUSE_STAGES } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
 
-// ─── Observatory Restoration Timeline ─────────────────────────────────────────
+// ─── House of Knowledge Timeline ──────────────────────────────────────────────
 
-const RESTORATION_STAGES = [
-  { icon: '🌑', label: 'Forgotten', description: 'Paths overgrown' },
-  { icon: '🛤', label: 'Unlocked', description: 'Paths cleared' },
-  { icon: '🧹', label: 'Swept', description: 'Hall cleaned' },
-  { icon: '🕯', label: 'First lamp', description: 'Light returns' },
-  { icon: '🔭', label: 'Telescope', description: 'Lens polished' },
-  { icon: '🗺', label: 'Star charts', description: 'Maps unrolled' },
-  { icon: '✦', label: 'Mapped', description: 'First constellation' },
-  { icon: '🗼', label: 'Tower lit', description: 'Second lamp' },
-  { icon: '🌌', label: 'Open sky', description: 'Roof repaired' },
-  { icon: '📜', label: 'Maps restored', description: 'Ancient records' },
-  { icon: '🌟', label: 'Complete', description: 'Fully operational' },
-]
+const STAGE_ICONS: Record<string, string> = {
+  foundation: '▥',
+  walls: '▦',
+  windows: '◫',
+  door: '▤',
+  roof: '⌂',
+  garden: '✿',
+  complete: '★',
+}
 
 function ObservatoryTimeline({ level }: { level: number }) {
   return (
