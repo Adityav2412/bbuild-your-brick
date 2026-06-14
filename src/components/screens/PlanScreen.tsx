@@ -60,7 +60,7 @@ export default function PlanScreen() {
     <div className="min-h-screen bg-background pb-28">
       {/* Header */}
       <div className="px-5 pt-14 pb-2">
-        <h1 className="font-heading font-bold text-4xl text-foreground">My Plan</h1>
+        <h1 className="font-heading font-bold text-4xl text-foreground">Journey</h1>
         <div className="flex items-center justify-between mt-3">
           <p className="text-muted-foreground text-sm">
             Today, {dateNum} {monthName}
