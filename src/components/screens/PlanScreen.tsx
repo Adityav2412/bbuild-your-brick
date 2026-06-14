@@ -12,7 +12,9 @@ export default function PlanScreen() {
 
   if (!user) return null
 
-  const house = getHouseState(user.totalSessions, user.houseEffortScore)
+  const syllabus = getSyllabusProgress(subjects)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus)
+  const scale = getHouseScale(syllabus.totalMinutes)
 
   // Subject rotation overview — last touched per subject
   const lastTouchedMap = new Map<string, number>()
