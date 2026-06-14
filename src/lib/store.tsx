@@ -145,6 +145,7 @@ function reducer(state: AppState, action: Action): AppState {
         joinDate: todayString(),
         avatarUrl: null,
         recentFeedback: [],
+        confidenceScore: 0,
         todayEnergy: null,
         energyDate: null,
         recoveryMode: false,
