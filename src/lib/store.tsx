@@ -587,6 +587,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setHydrated(true)
   }, [])
 
+  useEffect(() => {
+    startReminderScheduler()
+    return () => stopReminderScheduler()
+  }, [])
+
+
 
   useEffect(() => {
     if (!hydrated) return
