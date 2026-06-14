@@ -148,7 +148,7 @@ function reducer(state: AppState, action: Action): AppState {
         else merged.push(sub)
       }
       const schedule = state.user
-        ? buildTodaySchedule(merged, state.user.currentCapacity)
+        ? buildTodaySchedule(merged, state.user.currentCapacity, state.sessions)
         : state.todaySchedule
       return { ...state, subjects: merged, todaySchedule: schedule }
     }
@@ -158,7 +158,7 @@ function reducer(state: AppState, action: Action): AppState {
         s.id === action.subject.id ? action.subject : s
       )
       const schedule = state.user
-        ? buildTodaySchedule(subjects, state.user.currentCapacity)
+        ? buildTodaySchedule(subjects, state.user.currentCapacity, state.sessions)
         : state.todaySchedule
       return { ...state, subjects, todaySchedule: schedule }
     }
@@ -166,7 +166,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'DELETE_SUBJECT': {
       const subjects = state.subjects.filter((s) => s.id !== action.subjectId)
       const schedule = state.user
-        ? buildTodaySchedule(subjects, state.user.currentCapacity)
+        ? buildTodaySchedule(subjects, state.user.currentCapacity, state.sessions)
         : state.todaySchedule
       return { ...state, subjects, todaySchedule: schedule }
     }
@@ -256,7 +256,7 @@ function reducer(state: AppState, action: Action): AppState {
         feedback: null,
       }
 
-      const schedule = buildTodaySchedule(updatedSubjects, updatedUser.currentCapacity)
+      const schedule = buildTodaySchedule(updatedSubjects, updatedUser.currentCapacity, state.sessions)
 
       return {
         ...state,
