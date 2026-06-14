@@ -1,144 +1,152 @@
 'use client'
 
-import { Bell, Play, ChevronRight, Telescope, BookOpen } from 'lucide-react'
+import { Bell, Play, ChevronRight, Home as HomeIcon, BookOpen } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { getGreeting, getMentorMessage, getObservatoryState, formatMinutes } from '@/lib/algorithm'
+import { getGreeting, getMentorMessage, getHouseState, formatMinutes } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
-import { cn } from '@/lib/utils'
 
-// ─── Observatory Illustration ─────────────────────────────────────────────────
+// ─── House of Knowledge Illustration ──────────────────────────────────────────
+// Each completed session places one brick. The home evolves visually as the
+// student's consistency grows.
+//
+// Stages: 0 Foundation, 1 Walls, 2 Windows, 3 Door, 4 Roof, 5 Garden, 6 Complete
 
-function ObservatoryIllustration({ level }: { level: number }) {
-  // Stars: how many are revealed (0–8)
-  const starsVisible = Math.min(level, 8)
-  const starPositions = [
-    { cx: 52, cy: 18, r: 1.5 },
-    { cx: 72, cy: 28, r: 1 },
-    { cx: 38, cy: 24, r: 1 },
-    { cx: 88, cy: 18, r: 1.5 },
-    { cx: 20, cy: 32, r: 1 },
-    { cx: 62, cy: 10, r: 1 },
-    { cx: 78, cy: 38, r: 1 },
-    { cx: 14, cy: 20, r: 1.5 },
-  ]
+function HouseIllustration({ level, bricks }: { level: number; bricks: number }) {
+  const showWalls = level >= 1
+  const showWindows = level >= 2
+  const showDoor = level >= 3
+  const showRoof = level >= 4
+  const showGarden = level >= 5
+  const isComplete = level >= 6
 
-  // Dome opacity based on progress
-  const domeOpacity = 0.3 + (level / 10) * 0.7
-  // Telescope visible after level 4
-  const telescopeVisible = level >= 4
-  // Lamp lit after level 3
-  const lampLit = level >= 3
-  // Roof open after level 8
-  const roofOpen = level >= 8
+  // Animate the most recently placed brick on the front wall
+  const wallBricks = Math.min(bricks, 18)
 
   return (
     <svg viewBox="0 0 100 80" className="w-full h-full" aria-hidden="true">
-      {/* Night sky */}
-      <rect width="100" height="80" fill="transparent" />
+      {/* Ground line — the foundation is always there */}
+      <line x1="6" y1="72" x2="94" y2="72" stroke="#E8D9B8" strokeWidth="1.2" />
+      <rect x="22" y="70" width="56" height="3" rx="0.6" fill="#C9B894" opacity="0.9" />
 
-      {/* Stars — revealed progressively */}
-      {starPositions.slice(0, starsVisible).map((s, i) => (
-        <circle
-          key={i}
-          cx={s.cx}
-          cy={s.cy}
-          r={s.r}
-          fill={lampLit ? '#E8D98C' : '#C8C4B8'}
-          opacity={0.6 + (i % 3) * 0.15}
-        />
-      ))}
-
-      {/* Observatory base */}
-      <rect
-        x="18" y="54" width="64" height="22"
-        rx="2"
-        fill="#2B4B3C"
-        opacity={domeOpacity}
-      />
-
-      {/* Windows */}
-      <rect x="26" y="60" width="8" height="10" rx="1" fill={lampLit ? '#E8D98C' : '#1A3028'} opacity="0.9" />
-      <rect x="46" y="60" width="8" height="10" rx="1" fill={lampLit ? '#E8D98C' : '#1A3028'} opacity="0.9" />
-      <rect x="66" y="60" width="8" height="10" rx="1" fill={lampLit ? '#F5E8A0' : '#1A3028'} opacity="0.9" />
-
-      {/* Dome */}
-      <ellipse cx="50" cy="54" rx="22" ry="4" fill="#1E3828" opacity={domeOpacity} />
-      <path
-        d="M28 54 Q50 28 72 54"
-        fill="#2B4B3C"
-        opacity={domeOpacity}
-      />
-
-      {/* Dome slit (open when roof repaired) */}
-      {roofOpen && (
-        <path
-          d="M47 40 Q50 32 53 40"
-          fill="none"
-          stroke="#E8D98C"
-          strokeWidth="1.5"
-          opacity="0.7"
-        />
-      )}
-
-      {/* Telescope barrel (visible after level 4) */}
-      {telescopeVisible && (
-        <g transform="translate(50, 42) rotate(-30)">
-          <rect x="-2" y="-12" width="4" height="16" rx="1.5" fill="#4A7A5C" opacity="0.9" />
-          <rect x="-3" y="-14" width="6" height="4" rx="1" fill="#3A6A4C" opacity="0.9" />
+      {/* Garden — soft grass tufts */}
+      {showGarden && (
+        <g opacity="0.9">
+          <path d="M14 72 q1 -4 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
+          <path d="M17 72 q1 -3 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
+          <path d="M82 72 q1 -4 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
+          <path d="M85 72 q1 -3 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
+          {/* A small tree */}
+          <rect x="10" y="64" width="1.5" height="8" fill="#7C5A3A" />
+          <circle cx="10.7" cy="62" r="4" fill="#4E8A5C" opacity="0.9" />
         </g>
       )}
 
-      {/* Tower lamp glow (lit after level 3) */}
-      {lampLit && (
-        <>
-          <circle cx="17" cy="48" r="3" fill="#E8D98C" opacity="0.15" />
-          <circle cx="17" cy="48" r="1.5" fill="#E8D98C" opacity="0.6" />
-          <circle cx="83" cy="48" r="3" fill="#E8D98C" opacity="0.15" />
-          <circle cx="83" cy="48" r="1.5" fill="#E8D98C" opacity="0.6" />
-        </>
+      {/* Walls (rows of bricks) */}
+      {showWalls && (
+        <g>
+          <rect x="28" y="40" width="44" height="30" rx="1" fill="#D7A878" opacity="0.95" />
+          {/* Brick rows */}
+          {Array.from({ length: 6 }).map((_, row) => (
+            <g key={row}>
+              {Array.from({ length: 3 }).map((_, col) => {
+                const idx = row * 3 + col
+                const isLatest = idx === wallBricks - 1
+                if (idx >= wallBricks) return null
+                const xOff = row % 2 === 0 ? 0 : 7
+                return (
+                  <rect
+                    key={col}
+                    x={29 + col * 14 + xOff}
+                    y={42 + row * 4.5}
+                    width="13"
+                    height="3.6"
+                    rx="0.5"
+                    fill="#B07A4E"
+                    opacity="0.85"
+                    className={isLatest ? 'animate-brick-place' : undefined}
+                  />
+                )
+              })}
+            </g>
+          ))}
+          {/* Mortar outline */}
+          <rect
+            x="28"
+            y="40"
+            width="44"
+            height="30"
+            rx="1"
+            fill="none"
+            stroke="#8B5E3C"
+            strokeWidth="0.6"
+            opacity="0.5"
+          />
+        </g>
       )}
 
-      {/* Towers */}
-      <rect x="12" y="44" width="8" height="12" rx="1" fill="#2B4B3C" opacity={domeOpacity} />
-      <rect x="80" y="44" width="8" height="12" rx="1" fill="#2B4B3C" opacity={domeOpacity} />
+      {/* Windows */}
+      {showWindows && (
+        <g>
+          <rect x="33" y="46" width="10" height="10" rx="1" fill="#F5E8A0" opacity="0.95" />
+          <line x1="38" y1="46" x2="38" y2="56" stroke="#8B5E3C" strokeWidth="0.5" />
+          <line x1="33" y1="51" x2="43" y2="51" stroke="#8B5E3C" strokeWidth="0.5" />
 
-      {/* Ground line */}
-      <line x1="5" y1="76" x2="95" y2="76" stroke="#2B4B3C" strokeWidth="1" opacity="0.2" />
+          <rect x="57" y="46" width="10" height="10" rx="1" fill="#F5E8A0" opacity="0.95" />
+          <line x1="62" y1="46" x2="62" y2="56" stroke="#8B5E3C" strokeWidth="0.5" />
+          <line x1="57" y1="51" x2="67" y2="51" stroke="#8B5E3C" strokeWidth="0.5" />
+        </g>
+      )}
 
-      {/* Path (visible after level 1) */}
-      {level >= 1 && (
-        <path
-          d="M50 76 Q50 72 46 70 M50 76 Q50 72 54 70"
-          fill="none"
-          stroke="#4A7A5C"
-          strokeWidth="1"
-          opacity="0.4"
-        />
+      {/* Door */}
+      {showDoor && (
+        <g>
+          <rect x="46" y="58" width="8" height="12" rx="1" fill="#6B4226" />
+          <circle cx="52" cy="64" r="0.6" fill="#E8D98C" />
+        </g>
+      )}
+
+      {/* Roof */}
+      {showRoof && (
+        <g>
+          <path d="M24 42 L50 24 L76 42 Z" fill="#2B4B3C" />
+          <path d="M24 42 L50 24 L76 42 Z" fill="none" stroke="#1E3828" strokeWidth="0.6" />
+          {/* Chimney */}
+          <rect x="62" y="28" width="4" height="8" fill="#8B5E3C" />
+        </g>
+      )}
+
+      {/* Completion shimmer */}
+      {isComplete && (
+        <g opacity="0.7">
+          <circle cx="20" cy="20" r="0.8" fill="#E8D98C" />
+          <circle cx="80" cy="16" r="0.8" fill="#E8D98C" />
+          <circle cx="50" cy="12" r="1" fill="#F5E8A0" />
+        </g>
       )}
     </svg>
   )
 }
 
-// ─── Observatory Card ─────────────────────────────────────────────────────────
+// ─── House of Knowledge Card ──────────────────────────────────────────────────
 
-function ObservatoryCard() {
+function HouseCard() {
   const { state } = useStore()
   const { user } = state
   if (!user) return null
 
-  const obs = getObservatoryState(user.totalSessions)
-  const pct = Math.round(obs.fraction * 100)
+  const house = getHouseState(user.totalSessions)
+  const pct = Math.round(house.fraction * 100)
 
   return (
-    <div className="bg-primary rounded-3xl p-5 flex flex-col gap-4">
+    <div className="bg-primary rounded-3xl p-5 flex flex-col gap-4 animate-house-grow">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <p className="text-primary-foreground/60 text-xs font-medium uppercase tracking-wide">
-            Observatory
+            The House of Knowledge
           </p>
           <p className="text-primary-foreground font-semibold text-sm mt-0.5">
-            {obs.description}
+            {house.stage.label} — {house.stage.description}
           </p>
         </div>
         <span className="text-primary-foreground/70 text-xs font-semibold tabular-nums">
@@ -148,7 +156,7 @@ function ObservatoryCard() {
 
       {/* Illustration */}
       <div className="h-28 w-full">
-        <ObservatoryIllustration level={obs.level} />
+        <HouseIllustration level={house.level} bricks={house.bricks} />
       </div>
 
       {/* Progress bar */}
@@ -156,18 +164,18 @@ function ObservatoryCard() {
         <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
           <div
             className="h-full bg-white/70 rounded-full transition-all duration-1000"
-            style={{ width: `${pct}%` }}
+            style={{ width: `${Math.round(house.stageFraction * 100)}%` }}
           />
         </div>
         <div className="flex justify-between mt-1.5">
           <span className="text-primary-foreground/50 text-[10px]">
-            {user.totalSessions} session{user.totalSessions !== 1 ? 's' : ''} completed
+            {house.bricks} brick{house.bricks !== 1 ? 's' : ''} placed
           </span>
-          {obs.recentRestoration && (
-            <span className="text-primary-foreground/60 text-[10px]">
-              + {obs.recentRestoration}
-            </span>
-          )}
+          <span className="text-primary-foreground/60 text-[10px]">
+            {house.nextStage
+              ? `Next: ${house.nextStage.label} in ${house.bricksToNext} brick${house.bricksToNext !== 1 ? 's' : ''}`
+              : 'Home complete'}
+          </span>
         </div>
       </div>
     </div>
@@ -183,7 +191,7 @@ export default function HomeScreen() {
   if (!user) return null
 
   const greeting = getGreeting()
-  const mentorMessage = getMentorMessage(user.totalSessions)
+  const mentorMessage = user.lastMentorNote || getMentorMessage(user.totalSessions)
 
   const todayFocus = todaySchedule[0]
   const focusSubject = subjects.find((s) => s.id === todayFocus?.subjectId)
@@ -209,9 +217,9 @@ export default function HomeScreen() {
       <div className="flex items-center justify-between px-5 pt-14 pb-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-            <Telescope size={14} className="text-primary-foreground" strokeWidth={1.8} />
+            <HomeIcon size={14} className="text-primary-foreground" strokeWidth={1.8} />
           </div>
-          <span className="font-semibold text-sm text-foreground tracking-tight">StudyCoach</span>
+          <span className="font-semibold text-sm text-foreground tracking-tight">Brick</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -246,7 +254,10 @@ export default function HomeScreen() {
           <h1 className="font-bold text-3xl text-foreground leading-tight tracking-tight">
             {greeting}, {user.name.split(' ')[0]}.
           </h1>
-          <p className="text-muted-foreground mt-1 text-base leading-relaxed">
+          <p
+            key={mentorMessage}
+            className="text-muted-foreground mt-1 text-base leading-relaxed animate-mentor-fade"
+          >
             {mentorMessage}
           </p>
         </div>
@@ -255,7 +266,9 @@ export default function HomeScreen() {
         {daysUntilExam !== null && daysUntilExam <= 90 && (
           <div className="bg-card rounded-2xl border border-border px-4 py-3 flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">{user.examName}</span>
-            <span className="text-sm font-bold text-primary tabular-nums">{daysUntilExam} days left</span>
+            <span className="text-sm font-bold text-primary tabular-nums">
+              {daysUntilExam} days left
+            </span>
           </div>
         )}
 
@@ -274,7 +287,9 @@ export default function HomeScreen() {
                 <p className="font-bold text-xl text-foreground leading-tight tracking-tight truncate">
                   {focusSubject.name}
                 </p>
-                <p className="text-sm text-muted-foreground mt-0.5 truncate">{focusLecture.name}</p>
+                <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                  {focusLecture.name}
+                </p>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-xs font-semibold text-primary bg-primary/8 px-2.5 py-1 rounded-full">
                     {todayFocus.targetMinutes} min
@@ -294,7 +309,8 @@ export default function HomeScreen() {
                 <div className="flex items-center gap-2">
                   <BookOpen size={13} className="text-muted-foreground" />
                   <span className="text-xs text-muted-foreground">
-                    {todaySchedule.slice(1).length} more subject{todaySchedule.slice(1).length !== 1 ? 's' : ''} after this
+                    {todaySchedule.slice(1).length} more subject
+                    {todaySchedule.slice(1).length !== 1 ? 's' : ''} after this
                   </span>
                 </div>
                 <button
@@ -310,7 +326,7 @@ export default function HomeScreen() {
           <div className="bg-card rounded-3xl border border-border p-6 text-center">
             <p className="font-semibold text-foreground mb-1">All done for today</p>
             <p className="text-sm text-muted-foreground">
-              Your next session starts tomorrow.
+              Your next brick is placed tomorrow.
             </p>
           </div>
         )}
@@ -318,7 +334,9 @@ export default function HomeScreen() {
         {/* Capacity pill */}
         <div className="flex items-center justify-between px-4 py-3 bg-card rounded-2xl border border-border">
           <p className="text-sm text-muted-foreground">Current study capacity</p>
-          <p className="text-sm font-semibold text-foreground">{formatMinutes(user.currentCapacity)}/day</p>
+          <p className="text-sm font-semibold text-foreground">
+            {formatMinutes(user.currentCapacity)}/day
+          </p>
         </div>
 
         {/* Start Session button */}
@@ -332,8 +350,8 @@ export default function HomeScreen() {
           </button>
         )}
 
-        {/* Observatory restoration */}
-        <ObservatoryCard />
+        {/* House of Knowledge */}
+        <HouseCard />
       </div>
     </div>
   )
