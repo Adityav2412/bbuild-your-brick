@@ -354,20 +354,33 @@ export interface HouseStage {
 }
 
 export const HOUSE_STAGES: HouseStage[] = [
-  { index: 0, key: 'foundation',       label: 'Foundation',       description: 'The ground is set. Every home begins here.',     bricksRequired: 0 },
-  { index: 1, key: 'walls',            label: 'Walls',            description: 'The walls rise, brick by brick.',                bricksRequired: 11 },
-  { index: 2, key: 'windows',          label: 'Windows & Door',   description: 'Light enters. A way in begins to form.',         bricksRequired: 31 },
-  { index: 3, key: 'door',             label: 'Door',             description: 'A threshold. The home becomes yours.',           bricksRequired: 41 },
-  { index: 4, key: 'roof',             label: 'Roof',             description: 'Shelter. Quiet protection overhead.',            bricksRequired: 51 },
-  { index: 5, key: 'garden',           label: 'Garden',           description: 'Life grows around the home you built.',          bricksRequired: 71 },
-  { index: 6, key: 'complete',         label: 'Completed Home',   description: 'Built slowly. Built well. Built by you.',        bricksRequired: 91 },
+  { index: 0, key: 'foundation',       label: 'Foundation',       description: 'The ground is set. Every home begins here.',     bricksRequired: 0,   fractionRequired: 0    },
+  { index: 1, key: 'walls',            label: 'Walls',            description: 'The walls rise, brick by brick.',                bricksRequired: 11,  fractionRequired: 0.10 },
+  { index: 2, key: 'windows',          label: 'Windows & Door',   description: 'Light enters. A way in begins to form.',         bricksRequired: 31,  fractionRequired: 0.25 },
+  { index: 3, key: 'door',             label: 'Door',             description: 'A threshold. The home becomes yours.',           bricksRequired: 41,  fractionRequired: 0.40 },
+  { index: 4, key: 'roof',             label: 'Roof',             description: 'Shelter. Quiet protection overhead.',            bricksRequired: 51,  fractionRequired: 0.55 },
+  { index: 5, key: 'garden',           label: 'Garden',           description: 'Life grows around the home you built.',          bricksRequired: 71,  fractionRequired: 0.70 },
+  { index: 6, key: 'complete',         label: 'Completed Home',   description: 'Built slowly. Built well. Built by you.',        bricksRequired: 91,  fractionRequired: 0.90 },
   // Long-term expansions — the journey continues for years.
-  { index: 7, key: 'study-room',       label: 'Study Room',       description: 'A quiet room for deeper focus.',                 bricksRequired: 130, isExpansion: true },
-  { index: 8, key: 'library',          label: 'Library',          description: 'Walls of books. A mind that lasts.',             bricksRequired: 180, isExpansion: true },
-  { index: 9, key: 'reading-corner',   label: 'Reading Corner',   description: 'A soft chair by the window.',                    bricksRequired: 240, isExpansion: true },
-  { index: 10, key: 'garden-expansion', label: 'Garden Expansion', description: 'The garden widens, season after season.',       bricksRequired: 320, isExpansion: true },
-  { index: 11, key: 'workshop',         label: 'Workshop',         description: 'A place to build, beyond the home itself.',      bricksRequired: 420, isExpansion: true },
+  { index: 7, key: 'study-room',       label: 'Study Room',       description: 'A quiet room for deeper focus.',                 bricksRequired: 130, fractionRequired: 1.05, isExpansion: true },
+  { index: 8, key: 'library',          label: 'Library',          description: 'Walls of books. A mind that lasts.',             bricksRequired: 180, fractionRequired: 1.15, isExpansion: true },
+  { index: 9, key: 'reading-corner',   label: 'Reading Corner',   description: 'A soft chair by the window.',                    bricksRequired: 240, fractionRequired: 1.25, isExpansion: true },
+  { index: 10, key: 'garden-expansion', label: 'Garden Expansion', description: 'The garden widens, season after season.',       bricksRequired: 320, fractionRequired: 1.40, isExpansion: true },
+  { index: 11, key: 'workshop',         label: 'Workshop',         description: 'A place to build, beyond the home itself.',      bricksRequired: 420, fractionRequired: 1.60, isExpansion: true },
 ]
+
+// ─── House Scale ─────────────────────────────────────────────────────────────
+// The home Brick builds adapts to the size of the user's syllabus.
+//   Small  → Cottage,  Medium → House,  Large → Villa,  Very large → Estate
+export type HouseScaleKey = 'cottage' | 'house' | 'villa' | 'estate'
+export interface HouseScale { key: HouseScaleKey; label: string; description: string }
+
+export function getHouseScale(totalSyllabusMinutes: number): HouseScale {
+  if (totalSyllabusMinutes < 1000)  return { key: 'cottage', label: 'Cottage', description: 'A small, complete home.' }
+  if (totalSyllabusMinutes < 5000)  return { key: 'house',   label: 'House',   description: 'A steady family home.' }
+  if (totalSyllabusMinutes < 15000) return { key: 'villa',   label: 'Villa',   description: 'A spacious, layered home.' }
+  return { key: 'estate', label: 'Estate', description: 'A long, generational home.' }
+}
 
 export interface HouseState {
   bricks: number
