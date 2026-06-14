@@ -285,6 +285,23 @@ function SubjectManager() {
     })
   }
 
+  const cycleDifficulty = (subjectId: string, lectureId: string) => {
+    const sub = subjects.find((s) => s.id === subjectId)
+    if (!sub) return
+    const cycle: (LectureDifficulty | undefined)[] = [undefined, 'easy', 'moderate', 'heavy']
+    dispatch({
+      type: 'UPDATE_SUBJECT',
+      subject: {
+        ...sub,
+        lectures: sub.lectures.map((l) => {
+          if (l.id !== lectureId) return l
+          const i = cycle.indexOf(l.difficulty)
+          return { ...l, difficulty: cycle[(i + 1) % cycle.length] }
+        }),
+      },
+    })
+  }
+
   const deleteSubject = (id: string) => {
     dispatch({ type: 'DELETE_SUBJECT', subjectId: id })
     setShowDeleteConfirm(null)
