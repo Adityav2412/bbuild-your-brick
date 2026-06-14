@@ -60,6 +60,8 @@ export type Action =
   | { type: 'ADD_SUBJECTS'; subjects: Subject[] }
   | { type: 'UPDATE_SUBJECT'; subject: Subject }
   | { type: 'DELETE_SUBJECT'; subjectId: string }
+  | { type: 'ARCHIVE_SUBJECT'; subjectId: string }
+  | { type: 'UNARCHIVE_SUBJECT'; subjectId: string }
   | { type: 'START_SESSION'; subjectId: string; lectureId: string; targetMinutes: number }
   | { type: 'PAUSE_SESSION' }
   | { type: 'RESUME_SESSION' }
