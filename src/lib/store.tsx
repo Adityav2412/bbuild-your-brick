@@ -89,7 +89,12 @@ function makeId(): string {
 function effectiveCapacity(user: User): number {
   const isToday = user.energyDate === todayString()
   const energy = isToday ? user.todayEnergy ?? null : null
-  return adjustCapacityForEnergy(user.currentCapacity, energy)
+  const honesty = computeEnergyHonesty(user.energyHistory)
+  return adjustCapacityForEnergy(user.currentCapacity, energy, honesty)
+}
+
+function subjectHasProgress(sub: Subject): boolean {
+  return sub.lectures.some((l) => l.status === 'completed' || l.watchedMinutes > 0)
 }
 
 // ─── Initial State ────────────────────────────────────────────────────────────
