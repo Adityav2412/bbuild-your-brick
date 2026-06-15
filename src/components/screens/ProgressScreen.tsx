@@ -1,103 +1,95 @@
 'use client'
 
-import { BookOpen, TrendingUp, Sparkles, Layers } from 'lucide-react'
+import { BookOpen, TrendingUp, Sparkles, Layers, Check, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import { formatMinutes, getHouseState, getSyllabusProgress, getHouseScale, HOUSE_STAGES } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
+import { resolveStageFrame } from '@/components/HouseScene'
 
 // ─── House of Knowledge Timeline ──────────────────────────────────────────────
 
-const STAGE_ICONS: Record<string, string> = {
-  foundation: '▥',
-  walls: '▦',
-  windows: '◫',
-  door: '▤',
-  roof: '⌂',
-  garden: '✿',
-  complete: '★',
-}
-
 function HouseTimeline({ level }: { level: number }) {
   return (
-    <div className="relative">
-      <div className="absolute left-[18px] top-4 bottom-4 w-px bg-border" />
-      <div className="flex flex-col gap-1">
-        {HOUSE_STAGES.map((stage, i) => {
-          const isCompleted = i <= level
-          const isCurrent = i === level
-          return (
+    <div className="flex flex-col gap-2.5">
+      {HOUSE_STAGES.map((stage, i) => {
+        const isCompleted = i < level
+        const isCurrent = i === level
+        const isLocked = i > level
+        const frame = resolveStageFrame(stage, isCompleted || isCurrent ? 1 : 0)
+        return (
+          <div
+            key={stage.key}
+            className={cn(
+              'flex items-center gap-3 p-2.5 rounded-2xl transition-all border',
+              isCurrent
+                ? 'bg-primary/8 border-primary/30'
+                : isCompleted
+                  ? 'bg-card border-border/60'
+                  : 'bg-card/50 border-border/40',
+            )}
+          >
+            {/* Mini illustration */}
             <div
-              key={stage.key}
               className={cn(
-                'flex items-center gap-3 px-2 py-2 rounded-xl transition-all',
-                isCurrent && 'bg-primary/8'
+                'relative w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0 border',
+                isCurrent ? 'border-primary/40' : 'border-border/60',
               )}
             >
-              <div
+              <img
+                src={frame}
+                alt=""
+                width={1024}
+                height={1024}
+                loading="lazy"
                 className={cn(
-                  'w-9 h-9 rounded-full flex items-center justify-center shrink-0 z-10 border-2 transition-all',
-                  isCompleted
-                    ? isCurrent
-                      ? 'bg-primary border-primary'
-                      : 'bg-primary/15 border-primary/30'
-                    : 'bg-card border-border'
+                  'absolute inset-0 w-full h-full object-cover',
+                  isLocked && 'opacity-40 saturate-[0.5] blur-[0.5px]',
                 )}
-              >
-                <span
-                  className={cn(
-                    'text-sm leading-none',
-                    isCompleted
-                      ? isCurrent
-                        ? 'text-primary-foreground'
-                        : 'text-primary'
-                      : 'text-muted-foreground/40'
-                  )}
-                >
-                  {STAGE_ICONS[stage.key]}
-                </span>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p
-                  className={cn(
-                    'text-sm font-semibold leading-tight',
-                    isCompleted
-                      ? isCurrent
-                        ? 'text-primary'
-                        : 'text-foreground'
-                      : 'text-muted-foreground/50'
-                  )}
-                >
-                  {stage.label}
-                </p>
-                <p
-                  className={cn(
-                    'text-xs',
-                    isCompleted ? 'text-muted-foreground' : 'text-muted-foreground/30'
-                  )}
-                >
-                  {stage.description}
-                </p>
-              </div>
-
-              <span
-                className={cn(
-                  'text-[10px] font-medium shrink-0',
-                  isCompleted ? 'text-primary/60' : 'text-muted-foreground/30'
-                )}
-              >
-                {stage.fractionRequired === 0
-                  ? 'Start'
-                  : `${isCompleted ? '✓ ' : ''}${Math.round(stage.fractionRequired * 100)}%`}
-              </span>
+                draggable={false}
+              />
+              {isLocked && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/30">
+                  <Lock size={14} className="text-foreground/60" strokeWidth={2.2} />
+                </div>
+              )}
+              {isCompleted && (
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                  <Check size={10} className="text-primary-foreground" strokeWidth={3} />
+                </div>
+              )}
             </div>
-          )
-        })}
-      </div>
+
+            <div className="flex-1 min-w-0">
+              <p
+                className={cn(
+                  'text-sm font-bold leading-tight tracking-tight',
+                  isLocked ? 'text-muted-foreground/60' : 'text-foreground',
+                )}
+              >
+                {stage.label}
+                {stage.isExpansion && (
+                  <span className="ml-1.5 text-[9px] uppercase tracking-wider text-primary/70 font-bold">
+                    · Expansion
+                  </span>
+                )}
+              </p>
+              <p
+                className={cn(
+                  'text-xs italic mt-0.5 leading-snug truncate',
+                  isLocked ? 'text-muted-foreground/40' : 'text-muted-foreground',
+                )}
+              >
+                {stage.description}
+              </p>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
+
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
