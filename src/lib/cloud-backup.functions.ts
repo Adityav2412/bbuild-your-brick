@@ -31,7 +31,7 @@ export const cloudBackupSave = createServerFn({ method: 'POST' })
       { onConflict: 'code' },
     )
     if (error) throw new Error(error.message)
-    return { ok: true as const, updatedAt: payload.updated_at }
+    return { ok: true as const, updatedAt }
   })
 
 export const cloudBackupLoad = createServerFn({ method: 'POST' })
