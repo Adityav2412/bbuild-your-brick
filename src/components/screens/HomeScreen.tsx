@@ -39,7 +39,6 @@ function HouseIllustration({
   bricks: number
   stageFraction: number
 }) {
-  // What is visible at each stage
   const showFoundationBase  = level >= 0
   const showFoundationFull  = level >= 1
   const showWalls           = level >= 2
@@ -50,7 +49,6 @@ function HouseIllustration({
   const showRoofSolid       = level >= 6
   const isFinished          = level >= 7
 
-  // How "tall" the walls are during stage 2 — they grow with stageFraction.
   const wallRowsTarget = 6
   const wallRows = wallsFullyBuilt
     ? wallRowsTarget
@@ -58,31 +56,53 @@ function HouseIllustration({
       ? Math.max(1, Math.round(stageFraction * wallRowsTarget))
       : 0
 
-  // Latest placed brick — small animated highlight
   const latestBrickIdx = Math.max(0, Math.min(bricks - 1, wallRows * 3 - 1))
 
   return (
-    <svg viewBox="0 0 100 80" className="w-full h-full" aria-hidden="true">
-      {/* Ground line — always present */}
-      <line x1="6" y1="72" x2="94" y2="72" stroke="#E8D9B8" strokeWidth="1.2" />
+    <svg viewBox="0 0 120 90" className="w-full h-full" aria-hidden="true">
+      <defs>
+        <linearGradient id="brick-sky" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#F4E4C9" />
+          <stop offset="100%" stopColor="#EBD3AE" />
+        </linearGradient>
+        <linearGradient id="brick-ground" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#D8C19A" />
+          <stop offset="100%" stopColor="#B89868" />
+        </linearGradient>
+        <linearGradient id="brick-wall" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#C88058" />
+          <stop offset="100%" stopColor="#A65E38" />
+        </linearGradient>
+      </defs>
 
-      {/* Foundation — stage 0: outline only; stage 1+: full solid base */}
+      {/* Sky */}
+      <rect x="0" y="0" width="120" height="80" fill="url(#brick-sky)" rx="3" />
+      {/* Sun / lantern */}
+      <circle cx="98" cy="18" r="6" fill="#F2C879" opacity={isFinished ? 1 : 0.7} />
+      {/* Distant hills */}
+      <path d="M0 70 Q 20 56 40 64 T 80 60 T 120 66 L 120 80 L 0 80 Z" fill="#C9AE82" opacity="0.55" />
+
+      {/* Ground */}
+      <rect x="0" y="76" width="120" height="14" fill="url(#brick-ground)" />
+      <line x1="0" y1="76" x2="120" y2="76" stroke="#8B6F4A" strokeWidth="0.6" opacity="0.4" />
+
+      {/* Foundation outline */}
       {showFoundationBase && !showFoundationFull && (
-        <rect
-          x="22" y="70" width="56" height="3" rx="0.6"
-          fill="none" stroke="#C9B894" strokeWidth="0.8" strokeDasharray="2 1.5"
-        />
+        <rect x="32" y="72" width="56" height="4" rx="0.6"
+          fill="none" stroke="#7C5B3A" strokeWidth="0.8" strokeDasharray="2 1.5" />
       )}
       {showFoundationFull && (
-        <rect x="22" y="69" width="56" height="4" rx="0.6" fill="#C9B894" />
+        <g>
+          <rect x="32" y="71" width="56" height="5" rx="0.6" fill="#8C6E4A" />
+          <rect x="32" y="71" width="56" height="1.2" fill="#A6855E" />
+        </g>
       )}
 
-      {/* Walls (rows of bricks) — grow during Walls Rising, full by Window stage */}
+      {/* Walls */}
       {showWalls && (
         <g>
-          {/* Wall back-fill appears once walls are fully built so it doesn't show through partial bricks */}
           {wallsFullyBuilt && (
-            <rect x="28" y="40" width="44" height="30" rx="1" fill="#D7A878" opacity="0.95" />
+            <rect x="38" y="42" width="44" height="29" rx="0.6" fill="url(#brick-wall)" />
           )}
           {Array.from({ length: wallRows }).map((_, row) => (
             <g key={row}>
@@ -90,89 +110,150 @@ function HouseIllustration({
                 const idx = row * 3 + col
                 const isLatest = idx === latestBrickIdx
                 const xOff = row % 2 === 0 ? 0 : 7
-                const y = 70 - (row + 1) * 4.5
+                const y = 71 - (row + 1) * 4.5
                 return (
                   <rect
                     key={col}
-                    x={29 + col * 14 + xOff}
+                    x={39 + col * 14 + xOff}
                     y={y}
                     width="13"
                     height="3.6"
-                    rx="0.5"
-                    fill="#B07A4E"
-                    opacity="0.9"
+                    rx="0.4"
+                    fill={isLatest ? '#D88A5A' : '#B07A4E'}
+                    stroke="#8B5530"
+                    strokeWidth="0.25"
                     className={isLatest ? 'animate-brick-place' : undefined}
                   />
                 )
               })}
             </g>
           ))}
-          {wallsFullyBuilt && (
-            <rect x="28" y="40" width="44" height="30" rx="1"
-              fill="none" stroke="#8B5E3C" strokeWidth="0.6" opacity="0.5" />
-          )}
         </g>
       )}
 
-      {/* Window — appears at stage 3, second window at stage 4+ */}
+      {/* Windows */}
       {showWindow && (
         <g>
-          <rect x="33" y="46" width="10" height="10" rx="1"
-            fill={isFinished ? '#FFE9A6' : '#F5E8A0'} opacity="0.95" />
-          <line x1="38" y1="46" x2="38" y2="56" stroke="#8B5E3C" strokeWidth="0.5" />
-          <line x1="33" y1="51" x2="43" y2="51" stroke="#8B5E3C" strokeWidth="0.5" />
+          <rect x="43" y="48" width="10" height="11" rx="0.6"
+            fill={isFinished ? '#FFD982' : '#F0DCA0'} stroke="#6B4226" strokeWidth="0.5" />
+          <line x1="48" y1="48" x2="48" y2="59" stroke="#6B4226" strokeWidth="0.4" />
+          <line x1="43" y1="53.5" x2="53" y2="53.5" stroke="#6B4226" strokeWidth="0.4" />
           {showDoor && (
             <>
-              <rect x="57" y="46" width="10" height="10" rx="1"
-                fill={isFinished ? '#FFE9A6' : '#F5E8A0'} opacity="0.95" />
-              <line x1="62" y1="46" x2="62" y2="56" stroke="#8B5E3C" strokeWidth="0.5" />
-              <line x1="57" y1="51" x2="67" y2="51" stroke="#8B5E3C" strokeWidth="0.5" />
+              <rect x="67" y="48" width="10" height="11" rx="0.6"
+                fill={isFinished ? '#FFD982' : '#F0DCA0'} stroke="#6B4226" strokeWidth="0.5" />
+              <line x1="72" y1="48" x2="72" y2="59" stroke="#6B4226" strokeWidth="0.4" />
+              <line x1="67" y1="53.5" x2="77" y2="53.5" stroke="#6B4226" strokeWidth="0.4" />
             </>
           )}
         </g>
       )}
 
-      {/* Door — appears at stage 4 */}
+      {/* Door */}
       {showDoor && (
         <g>
-          <rect x="46" y="58" width="8" height="12" rx="1" fill="#6B4226" />
-          <circle cx="52" cy="64" r="0.6" fill="#E8D98C" />
+          <rect x="56" y="60" width="8" height="11" rx="0.6" fill="#6B4226" />
+          <rect x="56" y="60" width="8" height="1" fill="#8C5A36" />
+          <circle cx="62" cy="66" r="0.6" fill="#E8D98C" />
         </g>
       )}
 
-      {/* Roof framework — stage 5 only (beams, no covering) */}
+      {/* Roof framework */}
       {showRoofFrame && !showRoofSolid && (
-        <g>
-          <line x1="24" y1="42" x2="50" y2="24" stroke="#8B5E3C" strokeWidth="1" />
-          <line x1="50" y1="24" x2="76" y2="42" stroke="#8B5E3C" strokeWidth="1" />
-          <line x1="28" y1="40" x2="50" y2="28" stroke="#A88463" strokeWidth="0.5" />
-          <line x1="50" y1="28" x2="72" y2="40" stroke="#A88463" strokeWidth="0.5" />
-          <line x1="50" y1="24" x2="50" y2="40" stroke="#A88463" strokeWidth="0.5" />
+        <g stroke="#7C5B3A" fill="none">
+          <line x1="34" y1="44" x2="60" y2="26" strokeWidth="1" />
+          <line x1="60" y1="26" x2="86" y2="44" strokeWidth="1" />
+          <line x1="38" y1="42" x2="60" y2="30" strokeWidth="0.5" />
+          <line x1="60" y1="30" x2="82" y2="42" strokeWidth="0.5" />
+          <line x1="60" y1="26" x2="60" y2="42" strokeWidth="0.5" />
         </g>
       )}
 
-      {/* Roof solid — stage 6+ */}
+      {/* Roof solid */}
       {showRoofSolid && (
         <g>
-          <path d="M24 42 L50 24 L76 42 Z" fill="#2B4B3C" />
-          <path d="M24 42 L50 24 L76 42 Z" fill="none" stroke="#1E3828" strokeWidth="0.6" />
-          <rect x="62" y="28" width="4" height="8" fill="#8B5E3C" />
+          <path d="M32 44 L60 24 L88 44 Z" fill="#4A3A2A" />
+          <path d="M32 44 L60 24 L88 44 Z" fill="none" stroke="#2E2218" strokeWidth="0.6" />
+          {/* tile lines */}
+          <line x1="36" y1="42" x2="60" y2="28" stroke="#5B4632" strokeWidth="0.3" />
+          <line x1="40" y1="40" x2="60" y2="30" stroke="#5B4632" strokeWidth="0.3" />
+          <line x1="84" y1="42" x2="60" y2="28" stroke="#5B4632" strokeWidth="0.3" />
+          <line x1="80" y1="40" x2="60" y2="30" stroke="#5B4632" strokeWidth="0.3" />
+          <rect x="72" y="30" width="4" height="9" fill="#8B5E3C" />
+          <rect x="72" y="30" width="4" height="1" fill="#A87852" />
         </g>
       )}
 
-      {/* Finished — garden + warm window glow */}
+      {/* Finished — chimney smoke, garden, glow */}
       {isFinished && (
-        <g opacity="0.95">
-          <path d="M14 72 q1 -4 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
-          <path d="M17 72 q1 -3 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
-          <path d="M82 72 q1 -4 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
-          <path d="M85 72 q1 -3 2 0" stroke="#7BB28A" strokeWidth="1" fill="none" />
-          <rect x="10" y="64" width="1.5" height="8" fill="#7C5A3A" />
-          <circle cx="10.7" cy="62" r="4" fill="#4E8A5C" opacity="0.9" />
-          <circle cx="50" cy="14" r="1" fill="#F5E8A0" />
+        <g>
+          <circle cx="74" cy="26" r="1.2" fill="#E8DECE" opacity="0.7" className="animate-ember" />
+          <circle cx="75.5" cy="22" r="1.5" fill="#E8DECE" opacity="0.5" />
+          <path d="M14 76 q1 -5 2 0" stroke="#5A6B47" strokeWidth="1" fill="none" />
+          <path d="M17 76 q1 -4 2 0" stroke="#5A6B47" strokeWidth="1" fill="none" />
+          <path d="M102 76 q1 -5 2 0" stroke="#5A6B47" strokeWidth="1" fill="none" />
+          <path d="M105 76 q1 -4 2 0" stroke="#5A6B47" strokeWidth="1" fill="none" />
+          <rect x="20" y="66" width="1.5" height="10" fill="#7C5A3A" />
+          <circle cx="20.7" cy="64" r="4.5" fill="#5A6B47" />
         </g>
       )}
     </svg>
+  )
+}
+
+// ─── House of Knowledge Card ──────────────────────────────────────────────────
+
+function HouseCard() {
+  const { state } = useStore()
+  const { user, subjects } = state
+  if (!user) return null
+
+  const syllabus = getSyllabusProgress(subjects)
+  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus, { fraction: user.houseProgressFloor ?? 0, totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes })
+  const scale = getHouseScale(syllabus.totalMinutes)
+  const pct = Math.round(house.fraction * 100)
+
+  return (
+    <div className="rounded-3xl overflow-hidden border border-border bg-card shadow-warm animate-house-grow">
+      {/* Illustration scene */}
+      <div className="relative bg-[#F2E4C8] dark:bg-[#2B2218]">
+        <div className="h-40 w-full px-4 pt-3">
+          <HouseIllustration level={house.level} bricks={house.bricks} stageFraction={house.stageFraction} />
+        </div>
+        <div className="absolute top-3 left-4 text-[10px] font-mono uppercase tracking-[0.18em] text-[#7C5B3A] dark:text-primary/80">
+          Stage {Math.min(house.level + 1, 7)} of 7
+        </div>
+        <div className="absolute top-3 right-4 text-[10px] font-mono text-[#7C5B3A] dark:text-primary/80 tabular-nums">
+          {pct}%
+        </div>
+      </div>
+      {/* Caption */}
+      <div className="px-5 py-4">
+        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          Your {scale.label} of Knowledge
+        </p>
+        <h3 className="font-heading text-2xl text-foreground mt-1 leading-tight">
+          {house.stage.label}
+        </h3>
+        <p className="text-sm text-muted-foreground mt-1 italic">
+          {house.stage.description}
+        </p>
+        <div className="h-1 bg-muted rounded-full overflow-hidden mt-4">
+          <div
+            className="h-full bg-primary rounded-full transition-all duration-1000"
+            style={{ width: `${Math.round(house.stageFraction * 100)}%` }}
+          />
+        </div>
+        <div className="flex justify-between mt-2">
+          <span className="text-[11px] text-muted-foreground">
+            {house.bricks} brick{house.bricks !== 1 ? 's' : ''} placed
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            {house.nextStage ? `Next · ${house.nextStage.label}` : 'Home complete'}
+          </span>
+        </div>
+      </div>
+    </div>
   )
 }
 
