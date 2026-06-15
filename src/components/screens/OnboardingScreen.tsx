@@ -461,15 +461,20 @@ export default function OnboardingScreen() {
 
       {/* Content */}
       <div className="flex-1 px-5 overflow-y-auto pb-32">
-        <h2 className="font-heading font-bold text-2xl text-foreground mb-1 text-balance">
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary/80 mb-1">
+          {step === 0 && 'Chapter One'}
+          {step === 1 && 'Chapter Two'}
+          {step === 2 && 'Chapter Three'}
+        </p>
+        <h2 className="font-heading text-3xl text-foreground mb-1 text-balance leading-tight">
           {step === 0 && 'Tell us about yourself'}
-          {step === 1 && 'What are you aiming for?'}
-          {step === 2 && 'Import your lectures'}
+          {step === 1 && 'What are you building toward?'}
+          {step === 2 && 'Bring in your subjects'}
         </h2>
-        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-          {step === 0 && 'This helps us create a plan that fits your energy.'}
-          {step === 1 && 'Completely optional — helps us show you your progress.'}
-          {step === 2 && 'Add your subjects and lectures. We\'ll handle the rest.'}
+        <p className="text-sm text-muted-foreground mb-6 leading-relaxed italic">
+          {step === 0 && 'A few quiet questions — so today\'s rhythm fits you.'}
+          {step === 1 && 'Optional. A horizon line, gently kept in view.'}
+          {step === 2 && 'Drop in your lectures. Brick handles the rest.'}
         </p>
 
         {step === 0 && <StepPersonal />}
@@ -484,7 +489,7 @@ export default function OnboardingScreen() {
           disabled={!canProceed()}
           className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-heading font-semibold text-base flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform shadow-lg shadow-primary/20"
         >
-          {step === STEPS.length - 1 ? 'Start My Journey' : 'Continue'}
+          {step === STEPS.length - 1 ? 'Begin your build' : 'Continue'}
           <ChevronRight size={18} />
         </button>
       </div>
