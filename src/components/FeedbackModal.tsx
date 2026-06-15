@@ -68,14 +68,30 @@ export default function FeedbackModal() {
     <div className="fixed inset-0 z-50 flex items-end bg-foreground/40 backdrop-blur-sm">
       <div className="w-full max-w-[430px] mx-auto bg-card rounded-t-3xl px-5 pt-6 pb-10 animate-in slide-in-from-bottom-4 duration-300">
         {/* Handle */}
-        <div className="w-10 h-1 bg-border rounded-full mx-auto mb-6" />
+        <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5" />
 
-        <h2 className="font-bold text-xl text-foreground tracking-tight text-balance mb-1">
+        {/* Brick-placement celebration */}
+        <div className="flex flex-col items-center mb-5 relative">
+          <div className="relative w-16 h-12 mb-3">
+            {/* Tiny rising dust puffs */}
+            <span className="absolute left-2 -bottom-1 w-1.5 h-1.5 rounded-full bg-primary/20 animate-dust" />
+            <span className="absolute right-2 -bottom-1 w-1.5 h-1.5 rounded-full bg-primary/20 animate-dust" style={{ animationDelay: '300ms' }} />
+            <div className="absolute inset-x-0 bottom-0 h-7 w-14 mx-auto rounded-[6px] bg-gradient-to-b from-[#C88058] to-[#A65E38] shadow-warm animate-brick-place flex items-center justify-center">
+              <div className="w-px h-3 bg-[#7C4528]/40" />
+            </div>
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary">
+            A brick was placed
+          </p>
+        </div>
+
+        <h2 className="font-extrabold text-2xl text-foreground tracking-tight text-balance mb-1 text-center">
           How did that feel?
         </h2>
-        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-          Your answer helps Brick tune tomorrow&apos;s rhythm.
+        <p className="text-sm text-muted-foreground mb-6 leading-relaxed text-center italic">
+          Your answer helps Brick tune tomorrow's rhythm.
         </p>
+
 
         <div className="flex flex-col gap-2.5 mb-6">
           {OPTIONS.map((opt) => (
