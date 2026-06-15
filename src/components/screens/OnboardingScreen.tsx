@@ -79,7 +79,7 @@ function StepPersonal() {
 
       <div>
         <label className="block text-sm font-medium text-foreground mb-3">
-          What's the longest daily session you'd ever want?
+          What&apos;s your comfortable upper limit?
         </label>
         <div className="grid grid-cols-5 gap-2">
           {[60, 90, 120, 180, 240].map((d) => (
@@ -93,12 +93,12 @@ function StepPersonal() {
                   : 'bg-card text-foreground border-border hover:border-primary/40',
               )}
             >
-              {d >= 60 ? `${d / 60}h${d % 60 ? ` ${d % 60}m` : ''}` : `${d}m`}
+              {d >= 60 ? `${d / 60}h${d % 60 ? `order_id: 0.0001}` : `${d}m`}
             </button>
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          A calm ceiling. Brick will never push you past this — even on great days.
+          This is not a goal. It&apos;s simply the maximum Brick will ever recommend.
         </p>
       </div>
     </div>
