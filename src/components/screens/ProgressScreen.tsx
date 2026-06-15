@@ -127,8 +127,9 @@ export default function ProgressScreen() {
       {/* Header */}
       <div className="px-5 pt-14 pb-4 flex items-start justify-between gap-3">
         <div>
-          <h1 className="font-bold text-4xl text-foreground tracking-tight">Progress</h1>
-          <p className="text-muted-foreground text-sm mt-1">Your home, brick by brick</p>
+          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary/80">— The Journey —</p>
+          <h1 className="font-heading text-4xl text-foreground leading-none mt-1">Your Story</h1>
+          <p className="text-muted-foreground text-sm mt-1 italic">Every brick, remembered.</p>
         </div>
         {user.avatarUrl ? (
           <img
@@ -175,11 +176,11 @@ export default function ProgressScreen() {
           </div>
 
           <div className="bg-card rounded-3xl border border-border p-4 flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-xl bg-[#E0EEFF] flex items-center justify-center">
-              <BookOpen size={18} className="text-[#1A72C4]" />
+            <div className="w-9 h-9 rounded-xl bg-[#E8DECE] flex items-center justify-center">
+              <BookOpen size={18} className="text-[#6B4A2A]" />
             </div>
             <div>
-              <p className="font-bold text-3xl text-foreground tracking-tight">
+              <p className="font-heading text-3xl text-foreground">
                 {totalLecturesDone}
               </p>
               <p className="text-xs text-muted-foreground font-medium">Lectures Completed</p>
@@ -187,11 +188,11 @@ export default function ProgressScreen() {
           </div>
 
           <div className="bg-card rounded-3xl border border-border p-4 flex flex-col gap-2">
-            <div className="w-9 h-9 rounded-xl bg-[#FFF3E0] flex items-center justify-center">
-              <Layers size={18} className="text-[#C47A1A]" />
+            <div className="w-9 h-9 rounded-xl bg-[#F0DCB4] flex items-center justify-center">
+              <Layers size={18} className="text-[#8B5E2C]" />
             </div>
             <div>
-              <p className="font-bold text-3xl text-foreground tracking-tight">
+              <p className="font-heading text-3xl text-foreground">
                 {remainingLectures}
               </p>
               <p className="text-xs text-muted-foreground font-medium">Remaining Lectures</p>
