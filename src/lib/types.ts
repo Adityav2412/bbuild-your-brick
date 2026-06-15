@@ -57,6 +57,8 @@ export interface User {
   houseFloorTotalMinutes?: number
   /** Recent energy check-ins paired with how the session(s) actually went — used to dampen abuse of "low" energy. */
   energyHistory?: { date: string; energy: EnergyLevel; completionPct: number }[]
+  /** ISO date of the last day missed-day recovery was applied. Prevents re-applying on every refresh. */
+  lastRecoveryAppliedDate?: string | null
 }
 
 export interface Lecture {
