@@ -22,6 +22,8 @@ export default function StudySessionScreen() {
 
   const [elapsed, setElapsed] = useState(0)
   const [showEndConfirm, setShowEndConfirm] = useState(false)
+  const [autoPausedNotice, setAutoPausedNotice] = useState(false)
+  const lastHiddenAtRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const subject = subjects.find((s) => s.id === activeSession?.subjectId)
@@ -55,25 +57,42 @@ export default function StudySessionScreen() {
     }
   }, [activeSession])
 
-  // ─── Anti-cheat: auto-pause when the user leaves the app ─────────────
-  // If the tab is hidden, the window loses focus, or the device sleeps,
-  // we pause the timer so only active study time counts toward progress.
+  // ─── Soft inactivity guard ───────────────────────────────────────────
+  // Short background periods (phone auto-lock, glancing at a notification,
+  // switching to lecture video on another device) keep the session running.
+  // Only pause if the app has been inactive for more than 30 minutes, so
+  // unattended time can't silently accumulate into fake progress.
+  const INACTIVITY_LIMIT_MS = 30 * 60 * 1000
   useEffect(() => {
     if (!activeSession) return
-    const pauseIfRunning = () => {
+
+    const onHidden = () => {
       if (!state.activeSession || state.activeSession.pausedAt !== null) return
-      dispatch({ type: 'PAUSE_SESSION' })
+      lastHiddenAtRef.current = Date.now()
     }
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') pauseIfRunning()
+    const onVisible = () => {
+      const hiddenAt = lastHiddenAtRef.current
+      lastHiddenAtRef.current = null
+      if (!hiddenAt) return
+      if (!state.activeSession || state.activeSession.pausedAt !== null) return
+      if (Date.now() - hiddenAt > INACTIVITY_LIMIT_MS) {
+        dispatch({ type: 'PAUSE_SESSION' })
+        setAutoPausedNotice(true)
+      }
     }
-    window.addEventListener('blur', pauseIfRunning)
-    window.addEventListener('pagehide', pauseIfRunning)
-    document.addEventListener('visibilitychange', onVisibility)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') onHidden()
+      else onVisible()
+    }
+    window.addEventListener('blur', onHidden)
+    window.addEventListener('focus', onVisible)
+    window.addEventListener('pagehide', onHidden)
+    document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
-      window.removeEventListener('blur', pauseIfRunning)
-      window.removeEventListener('pagehide', pauseIfRunning)
-      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', onHidden)
+      window.removeEventListener('focus', onVisible)
+      window.removeEventListener('pagehide', onHidden)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
     }
   }, [activeSession, state.activeSession, dispatch])
 
@@ -118,6 +137,22 @@ export default function StudySessionScreen() {
       </div>
 
       <div className="flex-1 px-5 flex flex-col gap-4">
+        {autoPausedNotice && isPaused && (
+          <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3">
+            <p className="text-sm text-foreground">
+              Session paused due to extended inactivity.
+            </p>
+            <button
+              onClick={() => {
+                dispatch({ type: 'RESUME_SESSION' })
+                setAutoPausedNotice(false)
+              }}
+              className="px-4 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shrink-0"
+            >
+              Resume
+            </button>
+          </div>
+        )}
         {/* Main timer card — dark green */}
         <div className="bg-primary rounded-3xl p-6 flex flex-col gap-4">
           {/* Subject header */}
