@@ -257,62 +257,6 @@ function HouseCard() {
   )
 }
 
-// ─── House of Knowledge Card ──────────────────────────────────────────────────
-
-function HouseCard() {
-  const { state } = useStore()
-  const { user, subjects } = state
-  if (!user) return null
-
-  const syllabus = getSyllabusProgress(subjects)
-  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus, { fraction: user.houseProgressFloor ?? 0, totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes })
-  const scale = getHouseScale(syllabus.totalMinutes)
-  const pct = Math.round(house.fraction * 100)
-
-  return (
-    <div className="bg-primary rounded-3xl p-5 flex flex-col gap-4 animate-house-grow">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-primary-foreground/60 text-xs font-medium uppercase tracking-wide">
-            Your {scale.label} of Knowledge
-          </p>
-          <p className="text-primary-foreground font-semibold text-sm mt-0.5">
-            {house.stage.label} — {house.stage.description}
-          </p>
-        </div>
-        <span className="text-primary-foreground/70 text-xs font-semibold tabular-nums">
-          {pct}%
-        </span>
-      </div>
-
-      {/* Illustration */}
-      <div className="h-28 w-full">
-        <HouseIllustration level={house.level} bricks={house.bricks} stageFraction={house.stageFraction} />
-      </div>
-
-      {/* Progress bar */}
-      <div>
-        <div className="h-1.5 bg-white/15 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-white/70 rounded-full transition-all duration-1000"
-            style={{ width: `${Math.round(house.stageFraction * 100)}%` }}
-          />
-        </div>
-        <div className="flex justify-between mt-1.5">
-          <span className="text-primary-foreground/50 text-[10px]">
-            {house.bricks} brick{house.bricks !== 1 ? 's' : ''} placed
-          </span>
-          <span className="text-primary-foreground/60 text-[10px]">
-            {house.nextStage
-              ? `Next: ${house.nextStage.label}`
-              : 'Home complete'}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
