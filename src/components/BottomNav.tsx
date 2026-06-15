@@ -11,7 +11,7 @@ const NAV_ITEMS: {
   icon: React.ElementType
 }[] = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'plan', label: 'Journey', icon: CalendarDays },
+  { id: 'plan', label: 'Blueprint', icon: CalendarDays },
 ]
 
 const NAV_ITEMS_RIGHT: {
@@ -19,7 +19,7 @@ const NAV_ITEMS_RIGHT: {
   label: string
   icon: React.ElementType
 }[] = [
-  { id: 'progress', label: 'Progress', icon: TrendingUp },
+  { id: 'progress', label: 'Journey', icon: TrendingUp },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
@@ -40,10 +40,11 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 px-3 pb-3"
       aria-label="Main navigation"
     >
-      <div className="bg-card border-t border-border/60 px-2 pt-2 pb-2 safe-pb">
+      <div className="bg-card/95 backdrop-blur-md border border-border/70 rounded-3xl px-2 pt-2 pb-2 safe-pb shadow-warm">
+
         <div className="flex items-center justify-around">
           {/* Left nav items */}
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
@@ -91,7 +92,7 @@ export default function BottomNav() {
                 navigate('plan')
               }
             }}
-            className="w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform -mt-5"
+            className="w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-hearth active:scale-95 transition-transform -mt-6 ring-4 ring-background"
             aria-label="Start study session"
           >
             <Timer size={24} className="text-primary-foreground" strokeWidth={1.8} />

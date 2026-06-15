@@ -42,39 +42,43 @@ export default function PlanScreen() {
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      {/* Header */}
-      <div className="px-5 pt-14 pb-2 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-heading font-bold text-4xl text-foreground">Journey</h1>
-          <p className="text-muted-foreground text-sm mt-1">Your path, gently guided.</p>
-        </div>
-        {user.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt={user.name}
-            className="w-10 h-10 rounded-full object-cover border border-border shrink-0"
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-            <span className="text-primary-foreground font-semibold text-sm">
-              {user.name.charAt(0).toUpperCase()}
-            </span>
+      {/* Blueprint header */}
+      <div className="relative px-5 pt-14 pb-4">
+        <div className="absolute inset-x-0 top-0 h-full bg-blueprint opacity-40 pointer-events-none rounded-b-3xl" />
+        <div className="relative flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary/80">— The Blueprint —</p>
+            <h1 className="font-heading text-4xl text-foreground mt-1 leading-none">Your Plan</h1>
+            <p className="text-muted-foreground text-sm mt-1 italic">Drafted by Brick. Built by you.</p>
           </div>
-        )}
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.name}
+              className="w-10 h-10 rounded-full object-cover border border-border shrink-0"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
+              <span className="text-primary-foreground font-semibold text-sm">
+                {user.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="px-5 mt-4 space-y-5">
-        {/* House Progress */}
-        <div className="bg-card rounded-3xl border border-border p-5">
+        {/* House Progress — blueprint card */}
+        <div className="bg-card rounded-3xl border border-border p-5 shadow-warm">
           <div className="flex items-center justify-between mb-1">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-              {scale.label} Progress
+            <p className="text-[10px] font-mono font-medium text-primary/80 uppercase tracking-[0.18em]">
+              {scale.label} · Progress
             </p>
             <span className="text-xs text-primary font-semibold">
               {Math.round(house.fraction * 100)}%
             </span>
           </div>
-          <h2 className="font-heading font-bold text-2xl text-foreground tracking-tight mt-1">
+          <h2 className="font-heading text-2xl text-foreground mt-1">
             {house.stage.label}
           </h2>
           <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
@@ -112,8 +116,8 @@ export default function PlanScreen() {
         {/* Subject Rotation Overview */}
         {rotation.length > 0 && (
           <div>
-            <h3 className="font-heading font-semibold text-base text-foreground mb-3">
-              Subject Rotation
+            <h3 className="font-heading text-xl text-foreground mb-3 flex items-center gap-2">
+              <span className="text-primary/60 text-xs font-mono">§</span> Subject Rotation
             </h3>
             <div className="flex flex-col gap-2.5">
               {rotation.map(({ subject, daysAgo, pending }) => (
@@ -148,8 +152,8 @@ export default function PlanScreen() {
         {/* Upcoming Recommended Lectures (today's auto-built schedule) */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-heading font-semibold text-base text-foreground">
-              Upcoming Recommended
+            <h3 className="font-heading text-xl text-foreground flex items-center gap-2">
+              <span className="text-primary/60 text-xs font-mono">§</span> Today's Stack
             </h3>
             {todaySchedule.length > 0 && (
               <span className="text-xs text-muted-foreground">

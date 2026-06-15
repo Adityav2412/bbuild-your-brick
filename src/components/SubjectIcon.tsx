@@ -32,21 +32,21 @@ const ICON_MAP: Record<SubjectIcon, React.ElementType> = {
 }
 
 const BG_MAP: Record<SubjectColor, string> = {
-  lavender: 'bg-[#EEE8FF]',
-  sage: 'bg-[#E2F5EC]',
-  amber: 'bg-[#FFF3E0]',
-  sky: 'bg-[#E0EEFF]',
-  rose: 'bg-[#FFE8EC]',
-  emerald: 'bg-[#DCF5EB]',
+  lavender: 'bg-[#E8DECE]',
+  sage:     'bg-[#DCE3D2]',
+  amber:    'bg-[#F0DCB4]',
+  sky:      'bg-[#D8E2DE]',
+  rose:     'bg-[#EBD2C4]',
+  emerald:  'bg-[#D4DDC9]',
 }
 
 const COLOR_MAP: Record<SubjectColor, string> = {
-  lavender: 'text-[#7C5CC4]',
-  sage: 'text-[#2B7A52]',
-  amber: 'text-[#C47A1A]',
-  sky: 'text-[#1A72C4]',
-  rose: 'text-[#C43650]',
-  emerald: 'text-[#1A8A60]',
+  lavender: 'text-[#6B5337]',
+  sage:     'text-[#5A6B47]',
+  amber:    'text-[#8B5E2C]',
+  sky:      'text-[#4A6358]',
+  rose:     'text-[#A0522D]',
+  emerald:  'text-[#4F6939]',
 }
 
 const SIZE_MAP = {
