@@ -568,6 +568,103 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             parsed.user.houseFloorTotalMinutes = syll.totalMinutes
           }
 
+          // ─── One-time correction: 15 June 2026 manual credit ─────────────
+          // Before the timer-background fix, the app auto-paused when the
+          // phone locked, under-recording a session the student genuinely
+          // completed in real life. This block credits that day exactly once.
+          const JUNE_15 = '2026-06-15'
+          const alreadyCreditedJune15 =
+            parsed.user.june15CreditApplied === true ||
+            (parsed.sessions ?? []).some(
+              (s) => s.date === JUNE_15 && s.completed,
+            )
+          if (!alreadyCreditedJune15) {
+            const activeSub = (parsed.subjects ?? []).find(
+              (s) => !s.archived && s.lectures.some((l) => l.status !== 'completed'),
+            )
+            const targetLec = activeSub?.lectures.find(
+              (l) => l.status !== 'completed',
+            )
+            if (activeSub && targetLec) {
+              const creditMinutes = Math.max(
+                5,
+                Math.min(
+                  parsed.user.currentCapacity,
+                  targetLec.durationMinutes - targetLec.watchedMinutes,
+                ),
+              )
+              // Mark lecture watched (do not over-complete other lectures).
+              const newWatched = Math.min(
+                targetLec.durationMinutes,
+                targetLec.watchedMinutes + creditMinutes,
+              )
+              const lecDone = newWatched >= targetLec.durationMinutes
+              parsed.subjects = (parsed.subjects ?? []).map((s) =>
+                s.id !== activeSub.id
+                  ? s
+                  : {
+                      ...s,
+                      lectures: s.lectures.map((l) =>
+                        l.id !== targetLec.id
+                          ? l
+                          : {
+                              ...l,
+                              watchedMinutes: newWatched,
+                              status: lecDone ? 'completed' : 'pending',
+                              completedDate: lecDone ? JUNE_15 : l.completedDate,
+                            },
+                      ),
+                    },
+              )
+              // Synthetic session record (one brick).
+              const correctionSession: StudySessionRecord = {
+                id: 'correction-2026-06-15',
+                date: JUNE_15,
+                subjectId: activeSub.id,
+                lectureId: targetLec.id,
+                subjectName: activeSub.name,
+                lectureName: targetLec.name,
+                plannedMinutes: creditMinutes,
+                actualMinutes: creditMinutes,
+                completed: true,
+                feedback: null,
+              }
+              parsed.sessions = [...(parsed.sessions ?? []), correctionSession]
+              // Counters + house progression floor.
+              const effortBonus = 1 + Math.min(0.5, creditMinutes / 60)
+              const syll = getSyllabusProgress(parsed.subjects)
+              const newFraction =
+                syll.totalMinutes > 0
+                  ? syll.completedMinutes / syll.totalMinutes
+                  : 0
+              const prevFloor = parsed.user.houseProgressFloor ?? 0
+              const nextFloor = Math.max(prevFloor, newFraction)
+              parsed.user = {
+                ...parsed.user,
+                totalSessions: (parsed.user.totalSessions ?? 0) + 1,
+                totalMinutes: (parsed.user.totalMinutes ?? 0) + creditMinutes,
+                houseEffortScore:
+                  (parsed.user.houseEffortScore ?? 0) + effortBonus,
+                houseProgressFloor: nextFloor,
+                houseFloorTotalMinutes:
+                  nextFloor > prevFloor
+                    ? syll.totalMinutes
+                    : parsed.user.houseFloorTotalMinutes ?? syll.totalMinutes,
+                lastStudyDate:
+                  !parsed.user.lastStudyDate ||
+                  parsed.user.lastStudyDate < JUNE_15
+                    ? JUNE_15
+                    : parsed.user.lastStudyDate,
+                june15CreditApplied: true,
+              }
+            } else {
+              // No eligible lecture (e.g. syllabus already complete) — still
+              // mark the flag so we don't keep retrying every refresh.
+              parsed.user = { ...parsed.user, june15CreditApplied: true }
+            }
+          }
+
+
           // Missed-day recovery — Brick eases the workload, never punishes.
           // Idempotent per day: a second refresh on the same day must NOT
           // shrink the rhythm again. We stamp `lastRecoveryAppliedDate` and
@@ -619,11 +716,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             restoredScreen = 'session'
           }
 
-          const schedule = buildTodaySchedule(
-            parsed.subjects ?? [],
-            effectiveCapacity(parsed.user),
-            parsed.sessions ?? [],
-          )
+          // If we just credited 15 June and today is 15 June, the day's
+          // brick is already placed — show an empty schedule so the home
+          // screen surfaces "All done for today" instead of re-prompting.
+          const justCreditedToday =
+            !alreadyCreditedJune15 &&
+            parsed.user.june15CreditApplied === true &&
+            todayString() === JUNE_15
+          const schedule = justCreditedToday
+            ? []
+            : buildTodaySchedule(
+                parsed.subjects ?? [],
+                effectiveCapacity(parsed.user),
+                parsed.sessions ?? [],
+              )
           dispatch({
             type: 'HYDRATE',
             state: {
