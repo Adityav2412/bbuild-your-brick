@@ -217,8 +217,8 @@ html, body, [data-themed] {
   }
   h1, h2, h3, h4 {
     font-family: var(--font-heading);
-    letter-spacing: -0.02em;
-    font-feature-settings: "ss01", "ss02";
+    letter-spacing: -0.028em;
+    font-weight: 800;
   }
 }
 
