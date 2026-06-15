@@ -11,7 +11,7 @@ const NAV_ITEMS: {
   icon: React.ElementType
 }[] = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'plan', label: 'Journey', icon: CalendarDays },
+  { id: 'plan', label: 'Blueprint', icon: CalendarDays },
 ]
 
 const NAV_ITEMS_RIGHT: {
@@ -19,7 +19,7 @@ const NAV_ITEMS_RIGHT: {
   label: string
   icon: React.ElementType
 }[] = [
-  { id: 'progress', label: 'Progress', icon: TrendingUp },
+  { id: 'progress', label: 'Journey', icon: TrendingUp },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
