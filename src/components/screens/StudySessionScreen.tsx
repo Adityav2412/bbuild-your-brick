@@ -77,7 +77,10 @@ export default function StudySessionScreen() {
     }
   }, [activeSession, state.activeSession, dispatch])
 
-  if (!activeSession || !subject || !lecture) return null
+  if (!activeSession || !subject || !lecture) {
+    return <IdleSessionView />
+  }
+
 
   const targetSeconds = activeSession.targetMinutes * 60
   const remainingSeconds = Math.max(0, targetSeconds - elapsed)
