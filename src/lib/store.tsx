@@ -569,9 +569,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
 
           // Missed-day recovery — Brick eases the workload, never punishes.
+          // Idempotent per day: a second refresh on the same day must NOT
+          // shrink the rhythm again. We stamp `lastRecoveryAppliedDate` and
+          // skip if it already matches today.
+          const today = todayString()
           const away = daysAway(parsed.user.lastStudyDate)
           let startScreen: Screen = 'home'
-          if (away >= 1) {
+          const alreadyAppliedToday =
+            parsed.user.lastRecoveryAppliedDate === today
+          if (away >= 1 && !alreadyAppliedToday) {
             const rec = applyMissedDayRecovery(
               parsed.user.currentCapacity,
               parsed.user.comfortableMinutes,
@@ -579,18 +585,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             )
             parsed.user.currentCapacity = rec.newCapacity
             parsed.user.recoveryMode = rec.recoveryMode
+            parsed.user.lastRecoveryAppliedDate = today
             if (rec.mentorNote) parsed.user.lastMentorNote = rec.mentorNote
             if (rec.needsRecoveryOnboarding) {
               startScreen = 'recovery'
             } else if (isLongGap(parsed.user.lastStudyDate)) {
               startScreen = 'welcome-back'
             }
+          } else if (away >= 1 && alreadyAppliedToday && isLongGap(parsed.user.lastStudyDate)) {
+            // Still surface the welcome-back screen on same-day refresh,
+            // but don't re-apply the capacity reduction.
+            startScreen = 'welcome-back'
           }
+
 
           // Clear stale energy from a previous day
           if (parsed.user.energyDate && parsed.user.energyDate !== todayString()) {
             parsed.user.todayEnergy = null
             parsed.user.energyDate = null
+          }
+
+          // Restore an in-flight session (paused) so a refresh / device sleep
+          // never destroys live progress. We force pausedAt so the timer is
+          // frozen at the last persisted moment — the user must press Resume.
+          let restoredSession: ActiveSession | null = null
+          let restoredScreen: Screen = startScreen
+          if (parsed.activeSession) {
+            const a = parsed.activeSession
+            restoredSession = {
+              ...a,
+              pausedAt: a.pausedAt ?? Date.now(),
+            }
+            restoredScreen = 'session'
           }
 
           const schedule = buildTodaySchedule(
@@ -603,14 +629,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             state: {
               ...parsed,
               todaySchedule: schedule,
-              activeSession: null,
+              activeSession: restoredSession,
               pendingFeedback: null,
-              screen: startScreen,
+              screen: restoredScreen,
             },
           })
         } else {
           dispatch({ type: 'HYDRATE', state: { ...parsed, activeSession: null } })
         }
+
       }
     } catch (e) {
       console.error('[Brick] Hydration error:', e)
@@ -628,12 +655,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return
     try {
-      const toStore: AppState = { ...state, activeSession: null }
+      // Persist the active session in a frozen (paused) snapshot so a refresh,
+      // device sleep, or accidental tab close can resume exactly where the
+      // student left off. The timer never auto-starts after restore.
+      const frozenSession: ActiveSession | null = state.activeSession
+        ? {
+            ...state.activeSession,
+            pausedAt: state.activeSession.pausedAt ?? Date.now(),
+          }
+        : null
+      const toStore: AppState = { ...state, activeSession: frozenSession }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore))
     } catch (e) {
       console.error('[Brick] Persist error:', e)
     }
   }, [state, hydrated])
+
 
   if (!hydrated) {
     return (
