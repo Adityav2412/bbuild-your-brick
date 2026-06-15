@@ -137,6 +137,22 @@ export default function StudySessionScreen() {
       </div>
 
       <div className="flex-1 px-5 flex flex-col gap-4">
+        {autoPausedNotice && isPaused && (
+          <div className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-3">
+            <p className="text-sm text-foreground">
+              Session paused due to extended inactivity.
+            </p>
+            <button
+              onClick={() => {
+                dispatch({ type: 'RESUME_SESSION' })
+                setAutoPausedNotice(false)
+              }}
+              className="px-4 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shrink-0"
+            >
+              Resume
+            </button>
+          </div>
+        )}
         {/* Main timer card — dark green */}
         <div className="bg-primary rounded-3xl p-6 flex flex-col gap-4">
           {/* Subject header */}
