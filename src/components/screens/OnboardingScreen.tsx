@@ -79,10 +79,10 @@ function StepPersonal() {
 
       <div>
         <label className="block text-sm font-medium text-foreground mb-3">
-          What&apos;s your comfortable upper limit?
+          On your best days, how long would you realistically like to study?
         </label>
         <div className="grid grid-cols-5 gap-2">
-          {[60, 90, 120, 180, 240].map((d) => (
+          {[30, 45, 60, 90, 120].map((d) => (
             <button
               key={d}
               onClick={() => dispatch({ type: 'UPDATE_DRAFT', draft: { maxRhythm: d } })}
@@ -98,7 +98,7 @@ function StepPersonal() {
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          This is not a goal. It&apos;s simply the maximum Brick will ever recommend.
+          Brick adapts to your pace, but it will never recommend more than 2 hours in a single session.
         </p>
       </div>
     </div>
