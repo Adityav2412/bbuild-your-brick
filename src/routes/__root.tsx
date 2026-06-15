@@ -14,7 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ThemeProvider } from "../lib/theme";
 
 // Inline script: apply persisted theme before paint to avoid a light flash on dark users.
-const themeInitScript = `(function(){try{var m=localStorage.getItem('brick_theme')||'system';var d=m==='dark'||(m==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;if(d){r.classList.add('dark');r.style.colorScheme='dark';}else{r.style.colorScheme='light';}}catch(e){}})();`;
+const themeInitScript = `(function(){try{var m=localStorage.getItem('brick_theme')||'system';var d=m==='dark'||(m==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;if(d){r.classList.add('dark');r.style.colorScheme='dark';r.style.backgroundColor='#241B14';}else{r.style.colorScheme='light';r.style.backgroundColor='#F2EAD9';}}catch(e){}})();`;
 
 function NotFoundComponent() {
   return (
@@ -81,8 +81,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" },
-      { name: "theme-color", content: "#F5F3EE", media: "(prefers-color-scheme: light)" },
-      { name: "theme-color", content: "#1A2420", media: "(prefers-color-scheme: dark)" },
+      { name: "theme-color", content: "#F2EAD9", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#241B14", media: "(prefers-color-scheme: dark)" },
       { title: "Brick — One Brick At A Time" },
       { name: "description", content: "Brick is your personal study mentor. It decides what to study and how long, so you only have to show up." },
       { name: "author", content: "Brick" },
@@ -110,7 +110,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
       },
       {
         rel: "stylesheet",
