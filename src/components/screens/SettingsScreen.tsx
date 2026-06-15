@@ -847,8 +847,9 @@ export default function SettingsScreen() {
   return (
     <div className="min-h-screen bg-background pb-28">
       <div className="px-5 pt-14 pb-4">
-        <h1 className="font-bold text-4xl text-foreground tracking-tight">Settings</h1>
-        <p className="text-muted-foreground text-sm mt-1">Your profile and subjects</p>
+        <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary/80">— The Workshop —</p>
+        <h1 className="font-heading text-4xl text-foreground leading-none mt-1">Settings</h1>
+        <p className="text-muted-foreground text-sm mt-1 italic">Shape your space.</p>
       </div>
 
       <div className="px-5 space-y-6">

@@ -154,23 +154,23 @@ export default function ProgressScreen() {
               <Sparkles size={18} className="text-muted-foreground" />
             </div>
             <div>
-              <p className="font-bold text-3xl text-foreground tracking-tight">
+              <p className="font-heading text-3xl text-foreground">
                 {formatMinutes(user.comfortableMinutes)}
               </p>
               <p className="text-xs text-muted-foreground font-medium">Started Rhythm</p>
             </div>
           </div>
 
-          <div className="bg-primary rounded-3xl p-4 flex flex-col gap-2">
+          <div className="bg-primary rounded-3xl p-4 flex flex-col gap-2 shadow-warm">
             <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
               <TrendingUp size={18} className="text-primary-foreground" />
             </div>
             <div>
-              <p className="font-bold text-3xl text-primary-foreground tracking-tight">
+              <p className="font-heading text-3xl text-primary-foreground">
                 {formatMinutes(user.currentCapacity)}
               </p>
               <p className="text-xs text-primary-foreground/70 font-medium">
-                Today&apos;s Rhythm
+                Today's Rhythm
               </p>
             </div>
           </div>
