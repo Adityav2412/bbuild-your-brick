@@ -78,25 +78,18 @@ export default function BottomNav() {
           {/* Center FAB — Start Session */}
           <button
             onClick={() => {
-              const firstItem = state.todaySchedule.find(
-                (i) => i.status === 'in-progress' || i.status === 'upcoming'
-              )
-              if (firstItem) {
-                dispatch({
-                  type: 'START_SESSION',
-                  subjectId: firstItem.subjectId,
-                  lectureId: firstItem.lectureId,
-                  targetMinutes: firstItem.targetMinutes,
-                })
-              } else {
-                navigate('plan')
+              if (state.activeSession) {
+                navigate('session')
+                return
               }
+              navigate('session')
             }}
             className="w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-hearth active:scale-95 transition-transform -mt-6 ring-4 ring-background"
-            aria-label="Start study session"
+            aria-label="Open focus session"
           >
             <Timer size={24} className="text-primary-foreground" strokeWidth={1.8} />
           </button>
+
 
           {/* Right nav items */}
           {NAV_ITEMS_RIGHT.map(({ id, label, icon: Icon }) => (
