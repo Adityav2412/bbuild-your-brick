@@ -308,12 +308,15 @@ export default function HomeScreen() {
   return (
     <div className="min-h-screen bg-background pb-28">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-14 pb-4">
+      <div className="flex items-center justify-between px-5 pt-14 pb-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-            <HomeIcon size={14} className="text-primary-foreground" strokeWidth={1.8} />
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-warm">
+            <HomeIcon size={15} className="text-primary-foreground" strokeWidth={1.8} />
           </div>
-          <span className="font-semibold text-sm text-foreground tracking-tight">Brick</span>
+          <div className="leading-tight">
+            <span className="font-heading text-base text-foreground">Brick</span>
+            <p className="text-[10px] text-muted-foreground -mt-0.5">One brick at a time</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -323,7 +326,6 @@ export default function HomeScreen() {
           >
             <Bell size={16} className="text-foreground" strokeWidth={1.8} />
           </button>
-          {/* Avatar */}
           {user.avatarUrl ? (
             <img
               src={user.avatarUrl}
@@ -346,16 +348,17 @@ export default function HomeScreen() {
       <div className="px-5 space-y-4">
         {/* Greeting + mentor message + companion */}
         <div>
-          <h1 className="font-bold text-3xl text-foreground leading-tight tracking-tight">
-            {greeting}, {user.name.split(' ')[0]}.
+          <h1 className="font-heading text-[34px] text-foreground leading-[1.05]">
+            {greeting},<br/>
+            <span className="italic text-primary">{user.name.split(' ')[0]}.</span>
           </h1>
-          <div className="mt-2 flex items-start gap-3">
-            <CompanionAvatar size={36} className="mt-0.5" />
+          <div className="mt-3 flex items-start gap-3 bg-card/60 border border-border/60 rounded-2xl px-3 py-2.5">
+            <CompanionAvatar size={32} className="mt-0.5" />
             <p
               key={mentorMessage}
-              className="text-muted-foreground text-base leading-relaxed animate-mentor-fade flex-1"
+              className="text-foreground/80 text-[13px] leading-relaxed animate-mentor-fade flex-1 italic"
             >
-              {mentorMessage}
+              "{mentorMessage}"
             </p>
           </div>
         </div>
@@ -399,29 +402,32 @@ export default function HomeScreen() {
 
         {/* Today's Assignment Card */}
         {todayFocus && focusSubject && focusLecture ? (
-          <div className="bg-card rounded-3xl border border-border overflow-hidden">
-            <div className="px-4 pt-4 pb-1">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">
-                Today&apos;s Assignment
+          <div className="bg-card rounded-3xl border border-border overflow-hidden shadow-warm">
+            <div className="px-5 pt-4 pb-1 flex items-center justify-between">
+              <p className="text-[10px] font-mono font-medium text-muted-foreground uppercase tracking-[0.18em]">
+                Today's Assignment
               </p>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
             </div>
 
-            <div className="px-4 pt-2 pb-4 flex items-center gap-4">
+            <div className="px-5 pt-3 pb-5 flex items-center gap-4">
               <SubjectIcon icon={focusSubject.icon} color={focusSubject.color} size="lg" />
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-xl text-foreground leading-tight tracking-tight truncate">
+                <p className="font-heading text-2xl text-foreground leading-tight truncate">
                   {focusSubject.name}
                 </p>
                 <p className="text-sm text-muted-foreground mt-0.5 truncate">
                   {focusLecture.name}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs font-semibold text-primary bg-primary/8 px-2.5 py-1 rounded-full">
+                <div className="flex items-center gap-2 mt-2.5">
+                  <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
                     {todayFocus.targetMinutes} min
                   </span>
                   {todayFocus.watchedFrom > 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      Continue from {todayFocus.watchedFrom}m
+                    <span className="text-xs text-muted-foreground italic">
+                      from {todayFocus.watchedFrom}m
                     </span>
                   )}
                 </div>
@@ -500,14 +506,14 @@ export default function HomeScreen() {
         </div>
 
 
-        {/* Start Session button */}
+        {/* Begin Session button */}
         {todayFocus && (
           <button
             onClick={startSession}
-            className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 active:scale-[0.98] transition-transform shadow-lg shadow-primary/20"
+            className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-heading text-lg flex items-center justify-center gap-2.5 active:scale-[0.98] transition-transform shadow-hearth"
           >
             <Play size={18} fill="currentColor" className="ml-0.5" />
-            Begin Session
+            Place today's brick
           </button>
         )}
 
