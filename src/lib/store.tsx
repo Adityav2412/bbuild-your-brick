@@ -569,9 +569,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
 
           // Missed-day recovery — Brick eases the workload, never punishes.
+          // Idempotent per day: a second refresh on the same day must NOT
+          // shrink the rhythm again. We stamp `lastRecoveryAppliedDate` and
+          // skip if it already matches today.
+          const today = todayString()
           const away = daysAway(parsed.user.lastStudyDate)
           let startScreen: Screen = 'home'
-          if (away >= 1) {
+          const alreadyAppliedToday =
+            parsed.user.lastRecoveryAppliedDate === today
+          if (away >= 1 && !alreadyAppliedToday) {
             const rec = applyMissedDayRecovery(
               parsed.user.currentCapacity,
               parsed.user.comfortableMinutes,
@@ -579,13 +585,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             )
             parsed.user.currentCapacity = rec.newCapacity
             parsed.user.recoveryMode = rec.recoveryMode
+            parsed.user.lastRecoveryAppliedDate = today
             if (rec.mentorNote) parsed.user.lastMentorNote = rec.mentorNote
             if (rec.needsRecoveryOnboarding) {
               startScreen = 'recovery'
             } else if (isLongGap(parsed.user.lastStudyDate)) {
               startScreen = 'welcome-back'
             }
+          } else if (away >= 1 && alreadyAppliedToday && isLongGap(parsed.user.lastStudyDate)) {
+            // Still surface the welcome-back screen on same-day refresh,
+            // but don't re-apply the capacity reduction.
+            startScreen = 'welcome-back'
           }
+
 
           // Clear stale energy from a previous day
           if (parsed.user.energyDate && parsed.user.energyDate !== todayString()) {
