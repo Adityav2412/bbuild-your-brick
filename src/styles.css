@@ -12,8 +12,8 @@
  */
 
 @theme inline {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-heading: 'Fraunces', 'Cormorant Garamond', ui-serif, Georgia, serif;
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   --color-background: var(--background);
@@ -217,8 +217,8 @@ html, body, [data-themed] {
   }
   h1, h2, h3, h4 {
     font-family: var(--font-heading);
-    letter-spacing: -0.02em;
-    font-feature-settings: "ss01", "ss02";
+    letter-spacing: -0.028em;
+    font-weight: 800;
   }
 }
 
