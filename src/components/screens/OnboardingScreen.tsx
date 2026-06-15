@@ -93,7 +93,7 @@ function StepPersonal() {
                   : 'bg-card text-foreground border-border hover:border-primary/40',
               )}
             >
-              {d >= 60 ? `${d / 60}h${d % 60 ? `order_id: 0.0001}` : `${d}m`}
+              {d >= 60 ? `${d / 60}h${d % 60 ? ` ${d % 60}m` : ''}` : `${d}m`}
             </button>
           ))}
         </div>
