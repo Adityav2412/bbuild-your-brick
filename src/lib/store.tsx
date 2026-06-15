@@ -716,11 +716,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             restoredScreen = 'session'
           }
 
-          const schedule = buildTodaySchedule(
-            parsed.subjects ?? [],
-            effectiveCapacity(parsed.user),
-            parsed.sessions ?? [],
-          )
+          // If we just credited 15 June and today is 15 June, the day's
+          // brick is already placed — show an empty schedule so the home
+          // screen surfaces "All done for today" instead of re-prompting.
+          const justCreditedToday =
+            !alreadyCreditedJune15 &&
+            parsed.user.june15CreditApplied === true &&
+            todayString() === JUNE_15
+          const schedule = justCreditedToday
+            ? []
+            : buildTodaySchedule(
+                parsed.subjects ?? [],
+                effectiveCapacity(parsed.user),
+                parsed.sessions ?? [],
+              )
           dispatch({
             type: 'HYDRATE',
             state: {
