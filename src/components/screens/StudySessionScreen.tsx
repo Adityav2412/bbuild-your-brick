@@ -22,6 +22,8 @@ export default function StudySessionScreen() {
 
   const [elapsed, setElapsed] = useState(0)
   const [showEndConfirm, setShowEndConfirm] = useState(false)
+  const [autoPausedNotice, setAutoPausedNotice] = useState(false)
+  const lastHiddenAtRef = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const subject = subjects.find((s) => s.id === activeSession?.subjectId)
