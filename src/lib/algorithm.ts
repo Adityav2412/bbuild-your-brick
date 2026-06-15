@@ -51,8 +51,10 @@ export const CONFIDENCE_DELTA: Record<SessionFeedback, number> = {
   'couldnt-finish': -3,
 }
 
-/** Absolute hard ceiling for any rhythm calculation, anywhere. */
-export const RHYTHM_CEILING = 120
+/** Absolute hard ceiling for any rhythm calculation, anywhere. Matches the
+ *  largest option offered in onboarding (4h). The user's chosen maxRhythm
+ *  always overrides this downward, never upward. */
+export const RHYTHM_CEILING = 240
 /** Absolute hard floor. The rhythm never drops below this. */
 export const RHYTHM_FLOOR = 10
 
