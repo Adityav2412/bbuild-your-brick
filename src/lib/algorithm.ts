@@ -51,10 +51,12 @@ export const CONFIDENCE_DELTA: Record<SessionFeedback, number> = {
   'couldnt-finish': -3,
 }
 
-/** Absolute hard ceiling for any rhythm calculation, anywhere. Matches the
- *  largest option offered in onboarding (4h). The user's chosen maxRhythm
- *  always overrides this downward, never upward. */
-export const RHYTHM_CEILING = 240
+/** Absolute hard ceiling for any single-session recommendation, anywhere.
+ *  Deliberately 120 minutes (2h) to prevent burnout — the rhythm engine
+ *  will never schedule a single session beyond this, even if the user's
+ *  stated upper limit (maxRhythm) is higher. The user's maxRhythm is kept
+ *  as a personal preference and can only lower this cap, never raise it. */
+export const RHYTHM_CEILING = 120
 /** Absolute hard floor. The rhythm never drops below this. */
 export const RHYTHM_FLOOR = 10
 
