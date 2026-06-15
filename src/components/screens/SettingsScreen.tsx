@@ -19,7 +19,13 @@ import {
   Download,
   Upload,
   RotateCcw,
+  Cloud,
+  CloudDownload,
+  Copy,
+  Loader2,
 } from 'lucide-react'
+import { useServerFn } from '@tanstack/react-start'
+import { cloudBackupSave, cloudBackupLoad } from '@/lib/cloud-backup.functions'
 import { useTheme, type ThemeMode } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { useStore, exportBackup, importBackup } from '@/lib/store'
@@ -897,8 +903,9 @@ export default function SettingsScreen() {
         </section>
 
         {/* Backup */}
-        <section>
+        <section className="space-y-3">
           <BackupCard />
+          <CloudBackupCard />
         </section>
 
         {/* Danger zone */}
