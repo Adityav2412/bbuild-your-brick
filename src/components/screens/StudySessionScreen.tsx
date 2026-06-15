@@ -77,7 +77,10 @@ export default function StudySessionScreen() {
     }
   }, [activeSession, state.activeSession, dispatch])
 
-  if (!activeSession || !subject || !lecture) return null
+  if (!activeSession || !subject || !lecture) {
+    return <IdleSessionView />
+  }
+
 
   const targetSeconds = activeSession.targetMinutes * 60
   const remainingSeconds = Math.max(0, targetSeconds - elapsed)
@@ -331,3 +334,88 @@ export default function StudySessionScreen() {
     </div>
   )
 }
+
+function IdleSessionView() {
+  const { state, dispatch } = useStore()
+  const nextItem = state.todaySchedule.find(
+    (i) => i.status === 'in-progress' || i.status === 'upcoming'
+  )
+  const subject = nextItem
+    ? state.subjects.find((s) => s.id === nextItem.subjectId)
+    : undefined
+  const lecture = subject?.lectures.find((l) => l.id === nextItem?.lectureId)
+
+  const handleStart = () => {
+    if (!nextItem) return
+    dispatch({
+      type: 'START_SESSION',
+      subjectId: nextItem.subjectId,
+      lectureId: nextItem.lectureId,
+      targetMinutes: nextItem.targetMinutes,
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex items-center justify-between px-5 pt-14 pb-4">
+        <button
+          onClick={() => dispatch({ type: 'NAVIGATE', screen: 'home' })}
+          className="w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center shadow-sm"
+          aria-label="Back"
+        >
+          <ChevronLeft size={18} className="text-foreground" />
+        </button>
+        <h1 className="font-heading font-semibold text-lg text-foreground">Focus Session</h1>
+        <div className="w-9 h-9" />
+      </div>
+
+      <div className="flex-1 px-5 flex flex-col gap-4">
+        <div className="bg-primary rounded-3xl p-6 flex flex-col gap-4">
+          <div>
+            <p className="font-heading font-bold text-2xl text-primary-foreground leading-tight">
+              {subject?.name ?? 'Ready when you are'}
+            </p>
+            <p className="text-primary-foreground/70 text-sm mt-0.5">
+              {lecture?.name ?? 'No session active'}
+            </p>
+          </div>
+          <div className="font-heading font-bold text-7xl text-primary-foreground tracking-tight tabular-nums">
+            00:00
+          </div>
+          {nextItem && (
+            <div className="flex justify-between text-primary-foreground/80 text-sm">
+              <span>Today&apos;s Target</span>
+              <span className="font-semibold">{nextItem.targetMinutes} min</span>
+            </div>
+          )}
+        </div>
+
+        {nextItem ? (
+          <button
+            onClick={handleStart}
+            className="w-full h-14 bg-success text-success-foreground rounded-2xl font-heading font-semibold text-base flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform"
+          >
+            <Play size={20} fill="currentColor" />
+            Start Session
+          </button>
+        ) : (
+          <div className="bg-card rounded-3xl border border-border p-6 text-center">
+            <p className="font-heading font-semibold text-foreground mb-2">
+              Nothing scheduled right now
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Open Blueprint to plan today&apos;s study, or rest — recovery counts too.
+            </p>
+            <button
+              onClick={() => dispatch({ type: 'NAVIGATE', screen: 'plan' })}
+              className="w-full h-12 bg-primary text-primary-foreground rounded-2xl font-semibold"
+            >
+              Open Blueprint
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
