@@ -21,14 +21,15 @@ export const cloudBackupSave = createServerFn({ method: 'POST' })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
-    const payload = {
-      code: data.code.toUpperCase(),
-      data: data.data as object,
-      updated_at: new Date().toISOString(),
-    }
-    const { error } = await supabaseAdmin.from('backups').upsert(payload, {
-      onConflict: 'code',
-    })
+    const updatedAt = new Date().toISOString()
+    const { error } = await supabaseAdmin.from('backups').upsert(
+      {
+        code: data.code.toUpperCase(),
+        data: data.data as never,
+        updated_at: updatedAt,
+      },
+      { onConflict: 'code' },
+    )
     if (error) throw new Error(error.message)
     return { ok: true as const, updatedAt: payload.updated_at }
   })
