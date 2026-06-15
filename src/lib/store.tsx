@@ -643,12 +643,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return
     try {
-      const toStore: AppState = { ...state, activeSession: null }
+      // Persist the active session in a frozen (paused) snapshot so a refresh,
+      // device sleep, or accidental tab close can resume exactly where the
+      // student left off. The timer never auto-starts after restore.
+      const frozenSession: ActiveSession | null = state.activeSession
+        ? {
+            ...state.activeSession,
+            pausedAt: state.activeSession.pausedAt ?? Date.now(),
+          }
+        : null
+      const toStore: AppState = { ...state, activeSession: frozenSession }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore))
     } catch (e) {
       console.error('[Brick] Persist error:', e)
     }
   }, [state, hydrated])
+
 
   if (!hydrated) {
     return (
