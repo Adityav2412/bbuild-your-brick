@@ -593,6 +593,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             parsed.user.energyDate = null
           }
 
+          // Restore an in-flight session (paused) so a refresh / device sleep
+          // never destroys live progress. We force pausedAt so the timer is
+          // frozen at the last persisted moment — the user must press Resume.
+          let restoredSession: ActiveSession | null = null
+          let restoredScreen: Screen = startScreen
+          if (parsed.activeSession) {
+            const a = parsed.activeSession
+            restoredSession = {
+              ...a,
+              pausedAt: a.pausedAt ?? Date.now(),
+            }
+            restoredScreen = 'session'
+          }
+
           const schedule = buildTodaySchedule(
             parsed.subjects ?? [],
             effectiveCapacity(parsed.user),
@@ -603,14 +617,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             state: {
               ...parsed,
               todaySchedule: schedule,
-              activeSession: null,
+              activeSession: restoredSession,
               pendingFeedback: null,
-              screen: startScreen,
+              screen: restoredScreen,
             },
           })
         } else {
           dispatch({ type: 'HYDRATE', state: { ...parsed, activeSession: null } })
         }
+
       }
     } catch (e) {
       console.error('[Brick] Hydration error:', e)
