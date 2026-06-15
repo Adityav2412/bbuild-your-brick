@@ -59,6 +59,8 @@ export interface User {
   energyHistory?: { date: string; energy: EnergyLevel; completionPct: number }[]
   /** ISO date of the last day missed-day recovery was applied. Prevents re-applying on every refresh. */
   lastRecoveryAppliedDate?: string | null
+  /** One-time correction marker: 15 June 2026 brick manually credited (auto-pause bug recovery). */
+  june15CreditApplied?: boolean
 }
 
 export interface Lecture {
