@@ -900,9 +900,8 @@ export default function SettingsScreen() {
         </section>
 
         {/* Backup */}
-        <section className="space-y-3">
+        <section>
           <BackupCard />
-          <CloudBackupCard />
         </section>
 
         {/* Danger zone */}
