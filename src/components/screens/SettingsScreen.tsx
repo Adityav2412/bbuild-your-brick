@@ -765,14 +765,14 @@ function BackupCard() {
           className="flex items-center justify-center gap-2 h-10 rounded-xl bg-foreground text-background text-sm font-medium active:opacity-80 transition-opacity"
         >
           <Download size={14} />
-          Export
+          Export Backup
         </button>
         <button
           onClick={() => fileRef.current?.click()}
           className="flex items-center justify-center gap-2 h-10 rounded-xl bg-muted text-foreground text-sm font-medium active:opacity-80 transition-opacity"
         >
           <Upload size={14} />
-          Restore
+          Restore Backup
         </button>
       </div>
       <input
