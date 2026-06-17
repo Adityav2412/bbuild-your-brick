@@ -532,6 +532,16 @@ const StoreContext = createContext<{
 
 const STORAGE_KEY = 'brick_v1'
 const LEGACY_STORAGE_KEY = 'studycoach_v2'
+const APP_VERSION = '2026.06.17'
+const APP_VERSION_KEY = 'brick_app_version'
+
+export function getAppVersion(): string {
+  return APP_VERSION
+}
+
+export function acknowledgeAppVersion(): void {
+  try { localStorage.setItem(APP_VERSION_KEY, APP_VERSION) } catch {}
+}
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
