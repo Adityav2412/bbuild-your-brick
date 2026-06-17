@@ -42,7 +42,6 @@ export default function HomeScreen() {
     })
 
   const effectiveRhythm = adjustCapacityForEnergy(user.currentCapacity, todayEnergy)
-  const setEnergy = (e: EnergyLevel) => dispatch({ type: 'SET_ENERGY', energy: e })
 
   const todayFocus = todaySchedule[0]
   const focusSubject = subjects.find((s) => s.id === todayFocus?.subjectId)
@@ -156,33 +155,7 @@ export default function HomeScreen() {
           </div>
         </div>
 
-        {/* Daily Energy Check-In */}
-        {!energySetToday && (
-          <div className="bg-card rounded-3xl border border-border px-4 py-4">
-            <p className="text-sm font-bold text-foreground tracking-tight">
-              How are you feeling today?
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-              Brick will tune today's session to match.
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'good' as const, emoji: '😊', label: 'Good' },
-                { value: 'okay' as const, emoji: '🙂', label: 'Okay' },
-                { value: 'low' as const, emoji: '😴', label: 'Low' },
-              ].map((o) => (
-                <button
-                  key={o.value}
-                  onClick={() => setEnergy(o.value)}
-                  className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-background py-3 hover:border-primary/40 transition-colors"
-                >
-                  <span className="text-xl leading-none">{o.emoji}</span>
-                  <span className="text-xs font-semibold text-foreground">{o.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Daily energy check-in removed per product request */}
 
         {/* Today's Assignment */}
         {todayFocus && focusSubject && focusLecture ? (

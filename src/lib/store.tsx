@@ -532,6 +532,16 @@ const StoreContext = createContext<{
 
 const STORAGE_KEY = 'brick_v1'
 const LEGACY_STORAGE_KEY = 'studycoach_v2'
+const APP_VERSION = '2026.06.17'
+const APP_VERSION_KEY = 'brick_app_version'
+
+export function getAppVersion(): string {
+  return APP_VERSION
+}
+
+export function acknowledgeAppVersion(): void {
+  try { localStorage.setItem(APP_VERSION_KEY, APP_VERSION) } catch {}
+}
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
@@ -730,6 +740,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 effectiveCapacity(parsed.user),
                 parsed.sessions ?? [],
               )
+          // App-update gate: if the stored app version differs from the
+          // current build, surface the Update screen first so the user can
+          // restore from a local backup before continuing. Active sessions
+          // take priority and are never interrupted.
+          let finalScreen: Screen = restoredScreen
+          try {
+            const stored = localStorage.getItem(APP_VERSION_KEY)
+            if (stored !== APP_VERSION && restoredScreen !== 'session') {
+              finalScreen = 'update'
+            }
+          } catch {}
+
           dispatch({
             type: 'HYDRATE',
             state: {
@@ -737,13 +759,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               todaySchedule: schedule,
               activeSession: restoredSession,
               pendingFeedback: null,
-              screen: restoredScreen,
+              screen: finalScreen,
             },
           })
         } else {
           dispatch({ type: 'HYDRATE', state: { ...parsed, activeSession: null } })
+          // Non-onboarded user: nothing to protect, accept current version.
+          try { localStorage.setItem(APP_VERSION_KEY, APP_VERSION) } catch {}
         }
 
+      } else {
+        // Fresh install — no data to migrate, accept current version.
+        try { localStorage.setItem(APP_VERSION_KEY, APP_VERSION) } catch {}
       }
     } catch (e) {
       console.error('[Brick] Hydration error:', e)

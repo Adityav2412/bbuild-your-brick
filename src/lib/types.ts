@@ -9,6 +9,7 @@ export type Screen =
   | 'recovery'
   | 'welcome-back'
   | 'import'
+  | 'update'
 
 export type SessionFeedback = 'easy' | 'comfortable' | 'difficult' | 'couldnt-finish'
 

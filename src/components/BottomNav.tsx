@@ -31,7 +31,8 @@ export default function BottomNav() {
     screen === 'welcome' ||
     screen === 'onboarding' ||
     screen === 'session' ||
-    screen === 'welcome-back'
+    screen === 'welcome-back' ||
+    screen === 'update'
   ) {
     return null
   }
