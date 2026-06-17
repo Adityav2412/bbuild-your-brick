@@ -740,6 +740,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 effectiveCapacity(parsed.user),
                 parsed.sessions ?? [],
               )
+          // App-update gate: if the stored app version differs from the
+          // current build, surface the Update screen first so the user can
+          // restore from a local backup before continuing. Active sessions
+          // take priority and are never interrupted.
+          let finalScreen: Screen = restoredScreen
+          try {
+            const stored = localStorage.getItem(APP_VERSION_KEY)
+            if (stored !== APP_VERSION && restoredScreen !== 'session') {
+              finalScreen = 'update'
+            }
+          } catch {}
+
           dispatch({
             type: 'HYDRATE',
             state: {
@@ -747,7 +759,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               todaySchedule: schedule,
               activeSession: restoredSession,
               pendingFeedback: null,
-              screen: restoredScreen,
+              screen: finalScreen,
             },
           })
         } else {
