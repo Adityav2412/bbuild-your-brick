@@ -42,7 +42,6 @@ export default function HomeScreen() {
     })
 
   const effectiveRhythm = adjustCapacityForEnergy(user.currentCapacity, todayEnergy)
-  const setEnergy = (e: EnergyLevel) => dispatch({ type: 'SET_ENERGY', energy: e })
 
   const todayFocus = todaySchedule[0]
   const focusSubject = subjects.find((s) => s.id === todayFocus?.subjectId)
