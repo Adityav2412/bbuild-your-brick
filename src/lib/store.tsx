@@ -764,8 +764,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           })
         } else {
           dispatch({ type: 'HYDRATE', state: { ...parsed, activeSession: null } })
+          // Non-onboarded user: nothing to protect, accept current version.
+          try { localStorage.setItem(APP_VERSION_KEY, APP_VERSION) } catch {}
         }
 
+      } else {
+        // Fresh install — no data to migrate, accept current version.
+        try { localStorage.setItem(APP_VERSION_KEY, APP_VERSION) } catch {}
       }
     } catch (e) {
       console.error('[Brick] Hydration error:', e)
