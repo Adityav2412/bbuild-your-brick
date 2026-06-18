@@ -72,7 +72,8 @@ export function adjustCapacityFromStudyTime(
   maxRhythm: number = RHYTHM_CEILING,
 ): RhythmResult {
   maxRhythm = Math.min(maxRhythm, RHYTHM_CEILING);
-  const floor = Math.max(RHYTHM_FLOOR, Math.round(comfortableMinutes * 0.5));
+  // Set the absolute recommendation floor to 20 minutes baseline
+  const floor = Math.max(20, Math.round(comfortableMinutes * 0.5));
   let newCapacity = currentCapacity;
 
   if (actualMinutes > currentCapacity) {
@@ -636,7 +637,6 @@ export function getHouseState(
   totalStudyMinutes?: number,
 ): HouseState {
   const bricks = Math.max(0, totalSessions);
-  const virtualBricks = totalStudyMinutes !== undefined ? totalStudyMinutes / 20 : bricks;
 
   // ── Syllabus-driven progression ───────────────────────────────────────────
   if (syllabus && syllabus.totalMinutes > 0) {
@@ -665,12 +665,11 @@ export function getHouseState(
     const stageSpan = nextStage ? nextStage.fractionRequired - stage.fractionRequired : 0;
     const stageFraction =
       stageSpan > 0 ? Math.min(1, Math.max(0, (fraction - stage.fractionRequired) / stageSpan)) : 1;
-    const avgMinPerBrick = bricks > 0 ? syllabus.completedMinutes / bricks : 30;
     const minutesToNext = nextStage
       ? Math.max(0, (nextStage.fractionRequired - fraction) * syllabus.totalMinutes)
       : 0;
     const bricksToNext = nextStage
-      ? Math.max(1, Math.ceil(minutesToNext / Math.max(15, avgMinPerBrick)))
+      ? Math.max(1, Math.ceil(minutesToNext / 20))
       : 0;
 
     return {
@@ -688,26 +687,31 @@ export function getHouseState(
     };
   }
 
-  // ── Fallback: brick-count progression (legacy) ────────────────────────────
+  // ── Fallback: study minutes progression (direct scale, no virtual bricks) ──
+  const minutesStudied = totalStudyMinutes !== undefined ? totalStudyMinutes : (bricks * 20);
   let level = 0;
   for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
-    if (virtualBricks >= HOUSE_STAGES[i].bricksRequired) {
+    const minutesRequired = HOUSE_STAGES[i].bricksRequired * 20;
+    if (minutesStudied >= minutesRequired) {
       level = i;
       break;
     }
   }
   const stage = HOUSE_STAGES[level];
   const nextStage = HOUSE_STAGES[level + 1] ?? null;
-  const bricksToNext = nextStage ? Math.max(0, nextStage.bricksRequired - virtualBricks) : 0;
-  const stageSpan = nextStage ? nextStage.bricksRequired - stage.bricksRequired : 1;
-  let withinFromBricks = nextStage ? virtualBricks - stage.bricksRequired : stageSpan;
-  if (effortScore !== undefined && nextStage) {
-    const baseEffort = HOUSE_STAGES[level].bricksRequired;
-    withinFromBricks = Math.min(stageSpan, Math.max(withinFromBricks, effortScore - baseEffort));
-  }
-  const stageFraction = stageSpan > 0 ? Math.min(1, withinFromBricks / stageSpan) : 1;
-  const totalBricksForFull = HOUSE_STAGES[7].bricksRequired;
-  const fraction = Math.min(1, virtualBricks / totalBricksForFull);
+  
+  const currentStageMinutes = stage.bricksRequired * 20;
+  const nextStageMinutes = nextStage ? nextStage.bricksRequired * 20 : currentStageMinutes;
+  const stageSpanMinutes = nextStageMinutes - currentStageMinutes;
+  
+  const minutesToNext = nextStage ? Math.max(0, nextStageMinutes - minutesStudied) : 0;
+  const bricksToNext = nextStage ? Math.ceil(minutesToNext / 20) : 0;
+  
+  let withinFromMinutes = nextStage ? minutesStudied - currentStageMinutes : stageSpanMinutes;
+  const stageFraction = stageSpanMinutes > 0 ? Math.min(1, withinFromMinutes / stageSpanMinutes) : 1;
+  
+  const minutesForFull = HOUSE_STAGES[7].bricksRequired * 20;
+  const fraction = Math.min(1, minutesStudied / minutesForFull);
 
   return {
     bricks,
@@ -890,7 +894,7 @@ export function applyMissedDayRecovery(
       newCapacity: Math.max(floor, Math.round(currentCapacity * 0.9)),
       recoveryMode: false,
       needsRecoveryOnboarding: false,
-      mentorNote: "Glad you\u2019re here. We\u2019ll ease back into your rhythm.",
+      mentorNote: "Glad you\u2019re here. We\u2019ll ease back into consistency.",
     };
   }
   return {

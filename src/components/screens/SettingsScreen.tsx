@@ -215,25 +215,7 @@ function ProfileSection() {
   )
 }
 
-// ─── Study capacity card ────────────────────────────────────────────────────
 
-function CapacityCard() {
-  const { state } = useStore()
-  const { user } = state
-  if (!user) return null
-
-  return (
-    <div className="bg-card rounded-3xl border border-border px-4 py-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-foreground">Today&apos;s Rhythm</p>
-        <span className="text-sm font-bold text-primary">{formatMinutes(user.currentCapacity)}</span>
-      </div>
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        Your rhythm adjusts automatically based on how your completed study sessions feel. Rate each session honestly so Brick can find your pace.
-      </p>
-    </div>
-  )
-}
 
 // ─── Subject manager ───────────────────────────────────────────────────────
 
@@ -867,10 +849,7 @@ export default function SettingsScreen() {
           <ProfileSection />
         </section>
 
-        {/* Capacity */}
-        <section>
-          <CapacityCard />
-        </section>
+
 
         {/* Subjects */}
         <section>

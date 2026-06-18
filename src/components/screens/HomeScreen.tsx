@@ -302,27 +302,30 @@ export default function HomeScreen() {
         )}
 
         {/* Place Today's Brick button */}
-        {todayFocus && (
-          hasPlacedToday ? (
+        {hasPlacedToday ? (
+          <div className="space-y-3">
             <button
               disabled
               className="w-full h-14 bg-muted text-muted-foreground border border-border rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 opacity-70 cursor-not-allowed tracking-tight"
             >
               ✓ Brick Placed Today
             </button>
-          ) : (
-            <button
-              onClick={() => {
-                setIsModalOpen(true)
-                setModalStep('options')
-              }}
-              className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 active:scale-[0.98] transition-transform shadow-hearth tracking-tight"
-            >
-              <Play size={18} fill="currentColor" className="ml-0.5" />
-              Place Today's Brick
-            </button>
-          )
-        )}
+            <p className="text-center text-sm font-semibold text-muted-foreground">
+              Today's Study: {state.sessions.find((s) => s.date === today && s.completed)?.actualMinutes ?? 0} minutes
+            </p>
+          </div>
+        ) : todayFocus ? (
+          <button
+            onClick={() => {
+              setIsModalOpen(true)
+              setModalStep('options')
+            }}
+            className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 active:scale-[0.98] transition-transform shadow-hearth tracking-tight"
+          >
+            <Play size={18} fill="currentColor" className="ml-0.5" />
+            Place Today's Brick
+          </button>
+        ) : null}
       </div>
 
       {isModalOpen && (
@@ -388,7 +391,7 @@ export default function HomeScreen() {
                     Why did you study less than 20 minutes today?
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">
-                    Your reason is noted in your study history. We'll ease tomorrow's rhythm.
+                    Your reason is noted in your study history. We'll adjust tomorrow's study recommendation.
                   </p>
                 </div>
 

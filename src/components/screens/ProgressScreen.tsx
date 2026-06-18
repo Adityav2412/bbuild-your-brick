@@ -139,30 +139,30 @@ export default function ProgressScreen() {
       </div>
 
       <div className="px-5 space-y-5">
-        {/* Rhythm row */}
+        {/* Progress row */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-card rounded-3xl border border-border p-4 flex flex-col gap-2">
             <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
-              <Sparkles size={18} className="text-muted-foreground" />
+              <TrendingUp size={18} className="text-muted-foreground" />
             </div>
             <div>
               <p className="font-heading text-3xl text-foreground">
-                {formatMinutes(user.comfortableMinutes)}
+                {formatMinutes(user.totalMinutes)}
               </p>
-              <p className="text-xs text-muted-foreground font-medium">Started Rhythm</p>
+              <p className="text-xs text-muted-foreground font-medium">Total Study Time</p>
             </div>
           </div>
 
           <div className="bg-primary rounded-3xl p-4 flex flex-col gap-2 shadow-warm">
             <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
-              <TrendingUp size={18} className="text-primary-foreground" />
+              <Sparkles size={18} className="text-primary-foreground" />
             </div>
             <div>
               <p className="font-heading text-3xl text-primary-foreground">
-                {formatMinutes(user.currentCapacity)}
+                {user.totalSessions}
               </p>
               <p className="text-xs text-primary-foreground/70 font-medium">
-                Today's Rhythm
+                Bricks Placed
               </p>
             </div>
           </div>

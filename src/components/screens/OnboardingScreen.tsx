@@ -472,7 +472,7 @@ export default function OnboardingScreen() {
           {step === 2 && 'Bring in your subjects'}
         </h2>
         <p className="text-sm text-muted-foreground mb-6 leading-relaxed italic">
-          {step === 0 && 'A few quiet questions — so today\'s rhythm fits you.'}
+          {step === 0 && 'A few quiet questions — so today\'s recommendation fits you.'}
           {step === 1 && 'Optional. A horizon line, gently kept in view.'}
           {step === 2 && 'Drop in your lectures. Brick handles the rest.'}
         </p>

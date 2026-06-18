@@ -570,6 +570,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (parsed.user.todayEnergy === undefined) parsed.user.todayEnergy = null
           if (parsed.user.energyDate === undefined) parsed.user.energyDate = null
           if (parsed.user.recoveryMode === undefined) parsed.user.recoveryMode = false
+          if (parsed.user.totalMinutes === undefined) {
+            parsed.user.totalMinutes = (parsed.sessions ?? []).reduce((acc, s) => acc + s.actualMinutes, 0)
+          }
+          if (parsed.user.totalSessions === undefined) {
+            parsed.user.totalSessions = (parsed.sessions ?? []).filter(s => s.completed).length
+          }
           if (parsed.user.houseEffortScore === undefined) {
             parsed.user.houseEffortScore = computeEffortScore(parsed.sessions ?? [])
           }

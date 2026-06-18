@@ -31,7 +31,7 @@ const MENTOR_LINES = [
   "Let's focus on today's assignment.",
   "One session is enough.",
   'Your next brick is ready.',
-  "A small step today keeps the rhythm.",
+  "A small step today keeps consistency.",
 ]
 
 function todayStr(): string {
