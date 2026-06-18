@@ -16,6 +16,7 @@ import {
   buildTodaySchedule,
   adjustCapacityFromStudyTime,
   getReasonRecoveryMessage,
+  getLogicalStudyDate,
   isLongGap,
   daysAway,
   adjustCapacityForEnergy,
@@ -74,8 +75,7 @@ export type Action =
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function todayString(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  return getLogicalStudyDate()
 }
 
 function makeId(): string {
@@ -232,8 +232,15 @@ function reducer(state: AppState, action: Action): AppState {
       if (!state.user) return state
 
       const today = todayString()
+
+      // Prevent duplicate brick placements within the same reset window
+      const alreadyPlaced = state.sessions.some((s) => s.date === today && s.completed)
       const actualMinutes = action.actualMinutes
       const isBrick = actualMinutes >= 20
+
+      if (isBrick && alreadyPlaced) {
+        return state
+      }
 
       if (!isBrick) {
         // Less than 20 minutes studied.

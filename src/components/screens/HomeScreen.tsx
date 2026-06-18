@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Bell, Play, ChevronRight, Home as HomeIcon, BookOpen, AlertCircle, Sparkles } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import {
@@ -12,6 +12,7 @@ import {
   formatMinutes,
   daysAway,
   adjustCapacityForEnergy,
+  getLogicalStudyDate,
 } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
 import CompanionAvatar from '@/components/CompanionAvatar'
@@ -26,11 +27,21 @@ export default function HomeScreen() {
   const { state, dispatch } = useStore()
   const { user, subjects, todaySchedule, screen } = state
 
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 15000)
+    return () => clearInterval(timer)
+  }, [])
+
   if (!user && screen === 'home') return <StartupRecoveryScreen />
   if (!user) return null
 
   const greeting = getGreeting()
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLogicalStudyDate(currentTime)
+  const hasPlacedToday = state.sessions.some((s) => s.date === today && s.completed)
   const energySetToday = user.energyDate === today
   const todayEnergy: EnergyLevel | null = energySetToday ? (user.todayEnergy ?? null) : null
 
@@ -303,16 +314,25 @@ export default function HomeScreen() {
 
         {/* Place Today's Brick button */}
         {todayFocus && (
-          <button
-            onClick={() => {
-              setIsModalOpen(true)
-              setModalStep('options')
-            }}
-            className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 active:scale-[0.98] transition-transform shadow-hearth tracking-tight"
-          >
-            <Play size={18} fill="currentColor" className="ml-0.5" />
-            Place Today's Brick
-          </button>
+          hasPlacedToday ? (
+            <button
+              disabled
+              className="w-full h-14 bg-muted text-muted-foreground border border-border rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 opacity-70 cursor-not-allowed tracking-tight"
+            >
+              ✓ Brick Placed Today
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setIsModalOpen(true)
+                setModalStep('options')
+              }}
+              className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 active:scale-[0.98] transition-transform shadow-hearth tracking-tight"
+            >
+              <Play size={18} fill="currentColor" className="ml-0.5" />
+              Place Today's Brick
+            </button>
+          )
         )}
       </div>
 

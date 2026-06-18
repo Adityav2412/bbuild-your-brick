@@ -763,6 +763,14 @@ export const getObservatoryState = (totalSessions: number) => {
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
+export function getLogicalStudyDate(date: Date = new Date()): string {
+  const d = new Date(date);
+  if (d.getHours() < 12) {
+    d.setDate(d.getDate() - 1);
+  }
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
