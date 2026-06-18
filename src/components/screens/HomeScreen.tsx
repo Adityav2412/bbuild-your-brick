@@ -17,12 +17,15 @@ import CompanionAvatar from '@/components/CompanionAvatar'
 import HouseScene from '@/components/HouseScene'
 import type { EnergyLevel } from '@/lib/types'
 
+import StartupRecoveryScreen from './StartupRecoveryScreen'
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const { state, dispatch } = useStore()
-  const { user, subjects, todaySchedule } = state
+  const { user, subjects, todaySchedule, screen } = state
 
+  if (!user && screen === 'home') return <StartupRecoveryScreen />
   if (!user) return null
 
   const greeting = getGreeting()

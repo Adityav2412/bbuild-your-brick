@@ -29,6 +29,7 @@ import {
   SUBJECT_ICONS,
 } from './algorithm'
 import { startReminderScheduler, stopReminderScheduler } from './reminders'
+import { createEmergencyBackup } from './backup'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -849,6 +850,27 @@ export function importBackup(json: string): { ok: true } | { ok: false; error: s
     if (!data || typeof data !== 'object') {
       return { ok: false, error: 'Backup file is not in a recognised format.' }
     }
+
+    if (!data.user || typeof data.user !== 'object' || Array.isArray(data.user)) {
+      return { ok: false, error: 'Backup is missing valid user data.' }
+    }
+    if (!Array.isArray(data.subjects)) {
+      return { ok: false, error: 'Backup is missing valid subjects array.' }
+    }
+    if (data.sessions !== undefined && !Array.isArray(data.sessions)) {
+      return { ok: false, error: 'Backup contains invalid sessions data.' }
+    }
+
+    // Safety requirement: Create emergency backup of current state
+    const currentStored = localStorage.getItem(STORAGE_KEY)
+    if (currentStored) {
+      try {
+        createEmergencyBackup(JSON.parse(currentStored))
+      } catch (e) {
+        console.error('Failed to create emergency backup before restore:', e)
+      }
+    }
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     return { ok: true }
   } catch (e) {
