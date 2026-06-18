@@ -1,6 +1,6 @@
 'use client'
 
-import { Home, CalendarDays, TrendingUp, Settings, History } from 'lucide-react'
+import { Home, TrendingUp, History, Warehouse, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import type { Screen } from '@/lib/types'
@@ -11,10 +11,10 @@ const NAV_ITEMS: {
   icon: React.ElementType
 }[] = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'plan', label: 'Blueprint', icon: CalendarDays },
-  { id: 'progress', label: 'Journey', icon: TrendingUp },
   { id: 'history', label: 'History', icon: History },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'progress', label: 'Progress', icon: TrendingUp },
+  { id: 'house', label: 'House', icon: Warehouse },
+  { id: 'plan', label: 'Subjects', icon: BookOpen },
 ]
 
 export default function BottomNav() {
@@ -25,7 +25,8 @@ export default function BottomNav() {
     screen === 'welcome' ||
     screen === 'onboarding' ||
     screen === 'welcome-back' ||
-    screen === 'update'
+    screen === 'update' ||
+    screen === 'house-timeline'
   ) {
     return null
   }

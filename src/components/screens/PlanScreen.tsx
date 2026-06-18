@@ -1,9 +1,9 @@
 'use client'
 
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Plus, FolderHeart, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
-import { getHouseState, getSyllabusProgress, getHouseScale, formatMinutes } from '@/lib/algorithm'
+import { getSyllabusProgress, formatMinutes } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
 
 export default function PlanScreen() {
@@ -14,205 +14,133 @@ export default function PlanScreen() {
   if (!user) return null
 
   const syllabus = getSyllabusProgress(subjects)
-  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus, { fraction: user.houseProgressFloor ?? 0, totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes })
-  const scale = getHouseScale(syllabus.totalMinutes)
 
-  // Subject rotation overview — last touched per subject
+  // Subject last studied calculations
   const lastTouchedMap = new Map<string, number>()
   for (const s of sessions) {
     const t = new Date(s.date).getTime()
     lastTouchedMap.set(s.subjectId, Math.max(lastTouchedMap.get(s.subjectId) ?? 0, t))
   }
 
-  const rotation = subjects
-    .map((s) => {
-      const last = lastTouchedMap.get(s.id)
-      const pending = s.lectures.filter((l) => l.status === 'pending').length
-      const daysAgo =
-        last != null ? Math.floor((Date.now() - last) / 86400000) : null
-      return { subject: s, daysAgo, pending }
-    })
-    .filter((r) => r.pending > 0)
-    .sort((a, b) => {
-      // Subjects never touched first, then most days ago
-      const aD = a.daysAgo ?? 9999
-      const bD = b.daysAgo ?? 9999
-      return bD - aD
-    })
+  // Today's suggested focus
+  const todayFocus = todaySchedule[0]
+  const suggestedSub = todayFocus ? subjects.find((s) => s.id === todayFocus.subjectId) : null
+  const suggestedLec = suggestedSub?.lectures.find((l) => l.id === todayFocus?.lectureId)
 
   return (
     <div className="min-h-screen bg-background pb-28">
-      {/* Blueprint header */}
-      <div className="relative px-5 pt-14 pb-4">
-        <div className="absolute inset-x-0 top-0 h-full bg-blueprint opacity-40 pointer-events-none rounded-b-3xl" />
-        <div className="relative flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary/80">— The Blueprint —</p>
-            <h1 className="font-heading text-4xl text-foreground mt-1 leading-none">Your Plan</h1>
-            <p className="text-muted-foreground text-sm mt-1 italic">Drafted by Brick. Built by you.</p>
-          </div>
-          {user.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt={user.name}
-              className="w-10 h-10 rounded-full object-cover border border-border shrink-0"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-              <span className="text-primary-foreground font-semibold text-sm">
-                {user.name.charAt(0).toUpperCase()}
-              </span>
-            </div>
-          )}
+      {/* Header */}
+      <div className="px-5 pt-14 pb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary/80">— The Syllabus —</p>
+          <h1 className="font-heading text-4xl text-foreground leading-none mt-1">Subjects</h1>
+          <p className="text-muted-foreground text-sm mt-1 italic">Suggested next focus, managed by Brick.</p>
         </div>
+        <button
+          onClick={() => dispatch({ type: 'NAVIGATE', screen: 'settings' })}
+          className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-warm hover:scale-105 active:scale-95 transition-all"
+          aria-label="Add Subjects"
+        >
+          <Plus size={20} className="text-primary-foreground" />
+        </button>
       </div>
 
-      <div className="px-5 mt-4 space-y-5">
-        {/* House Progress — blueprint card */}
-        <div className="bg-card rounded-3xl border border-border p-5 shadow-warm">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[10px] font-mono font-medium text-primary/80 uppercase tracking-[0.18em]">
-              {scale.label} · Progress
-            </p>
-            <span className="text-xs text-primary font-semibold">
-              {Math.round(house.fraction * 100)}%
-            </span>
-          </div>
-          <h2 className="font-heading text-2xl text-foreground mt-1">
-            {house.stage.label}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-            {house.description}
-          </p>
-
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-4">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-700"
-              style={{ width: `${house.fraction * 100}%` }}
-            />
-          </div>
-
-          <p className="text-[11px] text-muted-foreground mt-3">
-            {formatMinutes(syllabus.completedMinutes)} of {formatMinutes(syllabus.totalMinutes)} studied
-            <span className="mx-1.5">·</span>
-            {house.bricks} {house.bricks === 1 ? 'brick' : 'bricks'} placed
-          </p>
-
-          {house.nextStage ? (
-            <p className="text-xs text-muted-foreground mt-2">
-              Next upgrade:{' '}
-              <span className="text-foreground font-semibold">{house.nextStage.label}</span>{' '}
-              <span className="text-muted-foreground">
-                · at {Math.round(house.nextStage.fractionRequired * 100)}% of syllabus
-              </span>
-            </p>
-          ) : (
-            <p className="text-xs text-primary mt-2 font-medium">
-              Your home is complete. Keep showing up — the garden keeps growing.
-            </p>
-          )}
-        </div>
-
-        {/* Subject Rotation Overview */}
-        {rotation.length > 0 && (
-          <div>
-            <h3 className="font-heading text-xl text-foreground mb-3 flex items-center gap-2">
-              <span className="text-primary/60 text-xs font-mono">§</span> Subject Rotation
-            </h3>
-            <div className="flex flex-col gap-2.5">
-              {rotation.map(({ subject, daysAgo, pending }) => (
-                <div
-                  key={subject.id}
-                  className="bg-card rounded-2xl border border-border px-4 py-3 flex items-center gap-3"
-                >
-                  <SubjectIcon icon={subject.icon} color={subject.color} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {subject.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {daysAgo == null
-                        ? 'Not started yet'
-                        : daysAgo === 0
-                          ? 'Studied today'
-                          : daysAgo === 1
-                            ? 'Last studied yesterday'
-                            : `Last studied ${daysAgo} days ago`}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {pending} pending
-                  </span>
-                </div>
-              ))}
+      <div className="px-5 mt-2 space-y-6">
+        {/* Suggested Next Subject Card (Mockup Tab 5 style) */}
+        {suggestedSub && suggestedLec ? (
+          <div className="bg-primary/5 border border-primary/20 rounded-3xl p-5 shadow-sm space-y-3.5 relative overflow-hidden">
+            <div className="absolute right-4 top-4 text-primary opacity-20">
+              <Sparkles size={38} className="animate-pulse" />
             </div>
+            <div>
+              <p className="text-[10px] font-bold text-primary uppercase tracking-[0.18em] leading-none">
+                Suggested Next Focus
+              </p>
+              <h3 className="text-lg font-extrabold text-foreground mt-2 leading-tight">
+                {suggestedSub.name}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Lecture: <span className="text-foreground font-semibold">{suggestedLec.name}</span>
+              </p>
+            </div>
+            
+            <button
+              onClick={() => dispatch({ type: 'NAVIGATE', screen: 'home' })}
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/95"
+            >
+              <span>Place Brick Now</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        ) : (
+          <div className="bg-card rounded-3xl border border-border p-5 text-center shadow-sm">
+            <p className="text-sm font-semibold text-foreground">Syllabus Complete! 🎉</p>
+            <p className="text-xs text-muted-foreground mt-1 italic">
+              All active subject lectures completed. Add new subjects in Settings.
+            </p>
           </div>
         )}
 
-        {/* Upcoming Recommended Lectures (today's auto-built schedule) */}
+        {/* Your Subjects List (Mockup Tab 5) */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-heading text-xl text-foreground flex items-center gap-2">
-              <span className="text-primary/60 text-xs font-mono">§</span> Today's Stack
-            </h3>
-            {todaySchedule.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {formatMinutes(
-                  todaySchedule.reduce((acc, i) => acc + i.targetMinutes, 0),
-                )}{' '}
-                total
-              </span>
-            )}
-          </div>
+          <h3 className="text-base font-extrabold text-foreground tracking-tight mb-3 flex items-center gap-2">
+            <FolderHeart size={16} className="text-muted-foreground" />
+            Your Subjects
+          </h3>
 
-          {todaySchedule.length === 0 ? (
-            <div className="bg-card rounded-3xl border border-border p-8 text-center">
-              <p className="font-heading font-semibold text-foreground mb-1">
-                Nothing pending
+          {subjects.length === 0 ? (
+            <div className="bg-card rounded-3xl border border-border p-6 text-center shadow-sm">
+              <p className="font-semibold text-foreground text-sm">No active subjects</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add subjects to start rotation building.
               </p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Add subjects and lectures, and Brick will guide the rest.
-              </p>
-              <button
-                onClick={() => dispatch({ type: 'NAVIGATE', screen: 'settings' })}
-                className="text-sm font-semibold text-primary"
-              >
-                Manage Subjects
-              </button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {todaySchedule.map((item, idx) => {
-                const sub = subjects.find((s) => s.id === item.subjectId)
-                const lec = sub?.lectures.find((l) => l.id === item.lectureId)
-                if (!sub || !lec) return null
-                const isFirst = idx === 0
+              {subjects.map((sub) => {
+                const total = sub.lectures.length
+                const completed = sub.lectures.filter((l) => l.status === 'completed').length
+                const pct = total > 0 ? Math.round((completed / total) * 100) : 0
+                
+                const lastStudied = lastTouchedMap.get(sub.id)
+                const daysAgo = lastStudied != null ? Math.floor((Date.now() - lastStudied) / 86400000) : null
+
                 return (
                   <div
-                    key={`${item.subjectId}-${item.lectureId}`}
-                    className={cn(
-                      'w-full bg-card rounded-3xl border p-4 text-left border-border shadow-warm'
-                    )}
+                    key={sub.id}
+                    className="bg-card rounded-3xl border border-border p-4.5 flex items-center gap-4.5 shadow-sm"
                   >
-                    <div className="flex items-start gap-3">
-                      <SubjectIcon icon={sub.icon} color={sub.color} size="md" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-semibold text-foreground truncate">
-                            {sub.name}
-                          </p>
-                          <span className="font-semibold text-sm text-foreground shrink-0">
-                            {item.targetMinutes} min
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-0.5 truncate">
-                          {lec.name}
+                    <SubjectIcon icon={sub.icon} color={sub.color} size="md" />
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-extrabold text-foreground text-sm truncate leading-none">
+                          {sub.name}
                         </p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-xs text-muted-foreground">
-                            {isFirst ? "Today's brick" : 'Next up'}
-                          </span>
-                        </div>
+                        <span className="text-xs font-bold text-primary leading-none">
+                          {pct}%
+                        </span>
+                      </div>
+                      
+                      {/* Horizontal progress bar */}
+                      <div className="h-1 bg-muted rounded-full overflow-hidden mt-2">
+                        <div
+                          className="h-full bg-success rounded-full"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+
+                      <div className="flex justify-between items-center mt-2.5 text-[10px] text-muted-foreground leading-none">
+                        <span>{completed}/{total} lectures</span>
+                        <span>
+                          {daysAgo == null
+                            ? 'Not studied yet'
+                            : daysAgo === 0
+                              ? 'Studied today'
+                              : daysAgo === 1
+                                ? 'Yesterday'
+                                : `${daysAgo}d ago`}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -221,6 +149,50 @@ export default function PlanScreen() {
             </div>
           )}
         </div>
+
+        {/* Suggested Next Action Queue (Mockup Tab 5 "Today's Stack") */}
+        {todaySchedule.length > 1 && (
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-foreground tracking-tight">
+                Suggested Actions Queue
+              </h3>
+              <span className="text-[10px] font-mono text-muted-foreground uppercase">
+                {todaySchedule.length} sessions
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {todaySchedule.slice(1).map((item, idx) => {
+                const sub = subjects.find((s) => s.id === item.subjectId)
+                const lec = sub?.lectures.find((l) => l.id === item.lectureId)
+                if (!sub || !lec) return null
+                
+                return (
+                  <div
+                    key={`${item.subjectId}-${item.lectureId}`}
+                    className="w-full bg-card rounded-2xl border border-border p-3.5 flex items-center gap-3.5 shadow-sm"
+                  >
+                    <SubjectIcon icon={sub.icon} color={sub.color} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-bold text-foreground text-xs truncate">
+                          {sub.name}
+                        </p>
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {item.targetMinutes} min
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                        {lec.name}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,16 +1,19 @@
 'use client'
 
-import { useState } from 'react'
-import { Calendar, Clock, Award, X, AlertTriangle, Activity, BarChart2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Calendar, Clock, Award, X, AlertTriangle, Activity, BarChart2, Search, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import type { StudySessionRecord } from '@/lib/types'
 import SubjectIcon from '@/components/SubjectIcon'
 
 export default function HistoryScreen() {
-  const { state, dispatch } = useStore()
+  const { state } = useStore()
   const { sessions, subjects, user } = state
   const [selectedSession, setSelectedSession] = useState<StudySessionRecord | null>(null)
+  
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState<'all' | 'completed' | 'missed'>('all')
 
   if (!user) return null
 
@@ -21,6 +24,26 @@ export default function HistoryScreen() {
     ? Math.round((totalBricks / sessions.length) * 100) 
     : 0
 
+  // Filtered sessions list
+  const filteredSessions = useMemo(() => {
+    return sessions
+      .slice()
+      .reverse()
+      .filter((s) => {
+        const matchesSearch =
+          s.subjectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          s.lectureName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (s.missedReason && s.missedReason.toLowerCase().includes(searchQuery.toLowerCase()))
+
+        const matchesFilter =
+          filterType === 'all' ||
+          (filterType === 'completed' && s.completed) ||
+          (filterType === 'missed' && !s.completed)
+
+        return matchesSearch && matchesFilter
+      })
+  }, [sessions, searchQuery, filterType])
+
   return (
     <div className="min-h-screen bg-background pb-28">
       {/* Header */}
@@ -30,10 +53,10 @@ export default function HistoryScreen() {
         <p className="text-muted-foreground text-sm mt-1 italic">Review your construction.</p>
       </div>
 
-      <div className="px-5 space-y-6">
+      <div className="px-5 space-y-5">
         {/* Statistics Grid */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-card rounded-2xl border border-border p-3 flex flex-col justify-between h-24">
+          <div className="bg-card rounded-2xl border border-border p-3 flex flex-col justify-between h-24 shadow-sm">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-none">
               Time
             </span>
@@ -43,11 +66,11 @@ export default function HistoryScreen() {
                   ? `${Math.floor(totalStudyMinutes / 60)}h ${totalStudyMinutes % 60}m` 
                   : `${totalStudyMinutes}m`}
               </p>
-              <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">Total minutes</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">Total studied</p>
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border p-3 flex flex-col justify-between h-24">
+          <div className="bg-card rounded-2xl border border-border p-3 flex flex-col justify-between h-24 shadow-sm">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-none">
               Bricks
             </span>
@@ -55,94 +78,121 @@ export default function HistoryScreen() {
               <p className="text-xl font-extrabold text-foreground tracking-tight">
                 {totalBricks}
               </p>
-              <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">Bricks earned</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">Earned bricks</p>
             </div>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border p-3 flex flex-col justify-between h-24">
+          <div className="bg-card rounded-2xl border border-border p-3 flex flex-col justify-between h-24 shadow-sm">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-none">
-              Consistency
+              Rate
             </span>
             <div className="mt-2">
               <p className="text-xl font-extrabold text-foreground tracking-tight">
                 {consistencyRate}%
               </p>
-              <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">Brick success rate</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5 font-medium">Consistency</p>
             </div>
           </div>
         </div>
 
-        {/* Sessions List */}
-        <div className="space-y-3">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
-            <BarChart2 size={13} className="text-muted-foreground/80" /> Logged Days
-          </h2>
+        {/* Search & Filter row */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search history..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-11 pl-10 pr-4 bg-card border border-border rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/25 transition-all focus:border-primary"
+            />
+          </div>
+          <select
+            value={filterType}
+            onChange={(e: any) => setFilterType(e.target.value)}
+            className="h-11 px-3 bg-card border border-border rounded-2xl text-xs font-semibold text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/25"
+          >
+            <option value="all">All Logs</option>
+            <option value="completed">Bricks Only</option>
+            <option value="missed">Under-baseline</option>
+          </select>
+        </div>
 
-          {sessions.length === 0 ? (
-            <div className="bg-card rounded-3xl border border-border p-8 text-center">
-              <p className="font-heading font-semibold text-foreground mb-1">No logs yet</p>
+        {/* Sessions List */}
+        <div className="space-y-4 pt-1">
+          {filteredSessions.length === 0 ? (
+            <div className="bg-card rounded-3xl border border-border p-8 text-center shadow-sm">
+              <p className="font-heading font-semibold text-foreground mb-1">No logs match filters</p>
               <p className="text-sm text-muted-foreground italic">
-                Logs will appear here once you study and log your minutes.
+                Try expanding your search query or switching filters.
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {sessions.slice().reverse().map((session) => {
+            /* Vertical Timeline list */
+            <div className="relative border-l border-border/60 pl-8 ml-3 space-y-6">
+              {filteredSessions.map((session) => {
                 const dateObj = new Date(session.date)
-                const dateStr = dateObj.toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                })
+                const dayStr = dateObj.toLocaleDateString(undefined, { day: 'numeric' })
+                const monthStr = dateObj.toLocaleDateString(undefined, { month: 'short' })
 
                 // Find matching subject to resolve color/icon badges
                 const matchedSub = subjects.find((s) => s.id === session.subjectId)
 
                 return (
-                  <button
-                    key={session.id}
-                    onClick={() => setSelectedSession(session)}
-                    className="w-full text-left bg-card hover:bg-muted/15 active:scale-[0.99] border border-border rounded-3xl p-4 flex items-center justify-between gap-4 transition-all focus:outline-none focus:ring-1 focus:ring-primary/20"
-                  >
-                    <div className="min-w-0 flex-1 flex items-center gap-3">
-                      {matchedSub ? (
-                        <SubjectIcon icon={matchedSub.icon} color={matchedSub.color} size="sm" />
-                      ) : (
-                        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                          <Clock size={16} className="text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-mono text-muted-foreground leading-none">{dateStr}</p>
-                        <p className="text-sm font-bold text-foreground mt-1 truncate">
-                          {session.subjectName || 'General Study'}
-                        </p>
-                        {session.lectureName && (
-                          <p className="text-xs text-muted-foreground truncate max-w-[200px] mt-0.5">
-                            {session.lectureName}
-                          </p>
-                        )}
-                        {!session.completed && session.missedReason && (
-                          <p className="text-xs text-destructive/85 italic truncate max-w-[200px] mt-0.5">
-                            Reason: {session.missedReason}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-heading text-base text-foreground font-extrabold leading-none">
-                        {session.actualMinutes} min
-                      </p>
-                      <span className={cn(
-                        'inline-block text-[9px] font-bold px-2 py-0.5 rounded-full mt-1.5 leading-none border',
-                        session.completed 
-                          ? 'bg-success/5 text-success border-success/20' 
-                          : 'bg-destructive/5 text-destructive border-destructive/20'
-                      )}>
-                        {session.completed ? '✓ Brick Earned' : '✗ No Brick'}
+                  <div key={session.id} className="relative">
+                    {/* Timeline Date Marker */}
+                    <div className="absolute -left-11 top-2.5 w-6 flex flex-col items-center justify-center text-center">
+                      <span className="text-[9px] uppercase font-bold text-muted-foreground leading-none tracking-wider">
+                        {monthStr}
+                      </span>
+                      <span className="text-sm font-extrabold text-foreground mt-0.5 leading-none">
+                        {dayStr}
                       </span>
                     </div>
-                  </button>
+
+                    <button
+                      onClick={() => setSelectedSession(session)}
+                      className="w-full text-left bg-card hover:bg-muted/10 active:scale-[0.99] border border-border rounded-2xl p-4 flex items-center justify-between gap-4 transition-all shadow-sm focus:outline-none"
+                    >
+                      <div className="min-w-0 flex-1 flex items-center gap-3">
+                        {matchedSub ? (
+                          <SubjectIcon icon={matchedSub.icon} color={matchedSub.color} size="sm" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                            <Clock size={16} className="text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-foreground truncate">
+                            {session.subjectName || 'General Study'}
+                          </p>
+                          {session.lectureName && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px] mt-0.5">
+                              {session.lectureName}
+                            </p>
+                          )}
+                          {!session.completed && session.missedReason && (
+                            <p className="text-[10px] text-destructive/85 italic truncate max-w-[200px] mt-0.5">
+                              Reason: {session.missedReason}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-heading text-sm text-foreground font-extrabold leading-none">
+                          {session.actualMinutes} min
+                        </p>
+                        <span className={cn(
+                          'inline-block text-[8px] font-bold px-2 py-0.5 rounded-full mt-1.5 leading-none border',
+                          session.completed 
+                            ? 'bg-success/5 text-success border-success/20' 
+                            : 'bg-destructive/5 text-destructive border-destructive/20'
+                        )}>
+                          {session.completed ? '✓ Brick' : 'No Brick'}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -155,7 +205,7 @@ export default function HistoryScreen() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 backdrop-blur-sm animate-in fade-in duration-200 p-5">
           <div className="absolute inset-0" onClick={() => setSelectedSession(null)} />
           
-          <div className="relative w-full max-w-[380px] bg-card rounded-3xl border border-border p-6 shadow-warm animate-in zoom-in-95 duration-200 z-10 flex flex-col gap-5">
+          <div className="relative w-full max-w-[380px] bg-card rounded-[28px] border border-border p-6 shadow-warm animate-in zoom-in-95 duration-200 z-10 flex flex-col gap-5">
             {/* Header / Date */}
             <div className="flex items-start justify-between">
               <div>
@@ -180,7 +230,7 @@ export default function HistoryScreen() {
             </div>
 
             {/* Subject/Lecture Box */}
-            <div className="bg-muted/40 rounded-2xl border border-border/80 p-3 flex items-center gap-3">
+            <div className="bg-muted/40 rounded-2xl border border-border/80 p-3.5 flex items-center gap-3">
               {subjects.find((s) => s.id === selectedSession.subjectId) ? (
                 <SubjectIcon
                   icon={subjects.find((s) => s.id === selectedSession.subjectId)!.icon}

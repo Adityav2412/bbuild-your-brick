@@ -10,6 +10,8 @@ export type Screen =
   | 'import'
   | 'update'
   | 'history'
+  | 'house'
+  | 'house-timeline'
 
 export type SessionFeedback = 'easy' | 'comfortable' | 'difficult' | 'couldnt-finish'
 

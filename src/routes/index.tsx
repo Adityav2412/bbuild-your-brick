@@ -11,6 +11,8 @@ import WelcomeBackScreen from '@/components/screens/WelcomeBackScreen'
 import RecoveryScreen from '@/components/screens/RecoveryScreen'
 import UpdateScreen from '@/components/screens/UpdateScreen'
 import HistoryScreen from '@/components/screens/HistoryScreen'
+import HouseScreen from '@/components/screens/HouseScreen'
+import HouseTimelineScreen from '@/components/screens/HouseTimelineScreen'
 
 export const Route = createFileRoute('/')({
   head: () => ({
@@ -48,6 +50,8 @@ function AppRouter() {
       {screen === 'recovery' && <RecoveryScreen />}
       {screen === 'update' && <UpdateScreen />}
       {screen === 'history' && <HistoryScreen />}
+      {screen === 'house' && <HouseScreen />}
+      {screen === 'house-timeline' && <HouseTimelineScreen />}
       <BottomNav />
     </div>
   )

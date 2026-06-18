@@ -974,3 +974,74 @@ export function validateLectureEdit(
   }
   return { ok: true };
 }
+
+/** Dynamic streak calculation from completed sessions list. */
+export function calculateStreak(sessions: StudySessionRecord[]): { current: number; longest: number } {
+  // Get unique sorted dates where a brick was successfully placed (completed is true)
+  const completedDates = Array.from(
+    new Set(
+      sessions
+        .filter((s) => s.completed)
+        .map((s) => s.date)
+    )
+  ).sort();
+
+  if (completedDates.length === 0) {
+    return { current: 0, longest: 0 };
+  }
+
+  let current = 0;
+  const today = getLogicalStudyDate(new Date());
+  
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = getLogicalStudyDate(yesterdayDate);
+
+  const set = new Set(completedDates);
+  let checkDate = new Date();
+
+  // Calculate current streak backward from today or yesterday
+  if (set.has(today)) {
+    current = 1;
+    checkDate.setDate(checkDate.getDate() - 1);
+    while (set.has(getLogicalStudyDate(checkDate))) {
+      current++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+  } else if (set.has(yesterday)) {
+    current = 1;
+    checkDate.setDate(checkDate.getDate() - 2);
+    while (set.has(getLogicalStudyDate(checkDate))) {
+      current++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+  }
+
+  // Calculate longest streak of consecutive days
+  let longest = 0;
+  let running = 0;
+  let prevTime: number | null = null;
+
+  for (const dateStr of completedDates) {
+    // parse date in local format
+    const parts = dateStr.split('-');
+    const currTime = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)).getTime();
+    if (prevTime === null) {
+      running = 1;
+    } else {
+      const diffDays = Math.round((currTime - prevTime) / 86400000);
+      if (diffDays === 1) {
+        running++;
+      } else if (diffDays > 1) {
+        running = 1;
+      }
+    }
+    prevTime = currTime;
+    if (running > longest) {
+      longest = running;
+    }
+  }
+
+  longest = Math.max(longest, current);
+  return { current, longest };
+}
