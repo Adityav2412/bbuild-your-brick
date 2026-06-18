@@ -1,4 +1,4 @@
-import { AppState } from "./store";
+import type { AppState } from "./store";
 
 export const AUTO_BACKUPS_KEY = "brick_auto_backups";
 export const EMERGENCY_BACKUP_KEY = "brick_emergency_backup";
