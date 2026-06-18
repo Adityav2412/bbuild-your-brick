@@ -62,6 +62,16 @@ export default function HomeScreen() {
   )
   const scale = getHouseScale(syllabus.totalMinutes)
 
+  const getMilestoneTag = (mins: number, baseline: number) => {
+    if (mins < baseline) return null
+    const diff = mins - baseline
+    if (diff >= 60) return { label: 'Baseline Achieved + +60 Min Bonus', bonus: '+60 Min Bonus', icon: '👑' }
+    if (diff >= 40) return { label: 'Baseline Achieved + +40 Min Bonus', bonus: '+40 Min Bonus', icon: '🔥' }
+    if (diff >= 20) return { label: 'Baseline Achieved + +20 Min Bonus', bonus: '+20 Min Bonus', icon: '✨' }
+    if (diff >= 10) return { label: 'Baseline Achieved + +10 Min Bonus', bonus: '+10 Min Bonus', icon: '⚡' }
+    return { label: 'Baseline Achieved', bonus: null, icon: '🏆' }
+  }
+
   const lastSession = state.sessions[state.sessions.length - 1] ?? null
   const lastSessionMinutes = lastSession && lastSession.completed && lastSession.date === today ? lastSession.actualMinutes : 0
 
@@ -317,9 +327,27 @@ export default function HomeScreen() {
             >
               ✓ Brick Placed Today
             </button>
-            <p className="text-center text-sm font-semibold text-muted-foreground">
-              Today's Study: {state.sessions.find((s) => s.date === today && s.completed)?.actualMinutes ?? 0} minutes
-            </p>
+            <div className="bg-card border border-border rounded-3xl p-4 flex flex-col items-center justify-center gap-2.5 shadow-warm">
+              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Today's Achievements</p>
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-success/10 text-success border border-success/20 px-2.5 py-1 rounded-full">
+                  🏆 Baseline Achieved
+                </span>
+                {(() => {
+                  const todaySession = state.sessions.find((s) => s.date === today && s.completed)
+                  if (!todaySession) return null
+                  const diff = todaySession.actualMinutes - user.comfortableMinutes
+                  if (diff >= 60) return <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full">👑 +60 Min Bonus</span>
+                  if (diff >= 40) return <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full">🔥 +40 Min Bonus</span>
+                  if (diff >= 20) return <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full">✨ +20 Min Bonus</span>
+                  if (diff >= 10) return <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full">⚡ +10 Min Bonus</span>
+                  return null
+                })()}
+              </div>
+              <p className="text-center text-xs font-semibold text-muted-foreground mt-1">
+                Today's Study: {state.sessions.find((s) => s.date === today && s.completed)?.actualMinutes ?? 0} minutes
+              </p>
+            </div>
           </div>
         ) : todayFocus ? (
           <button
@@ -501,14 +529,34 @@ export default function HomeScreen() {
                     </div>
                   )}
 
-                  {parseInt(customMinutes, 10) >= user.comfortableMinutes && (
-                    <div className="flex items-center gap-2 px-3 py-2.5 bg-primary/10 border border-primary/25 rounded-2xl">
-                      <Sparkles size={15} className="text-primary shrink-0" style={{ transform: 'rotate(15deg)' }} />
-                      <p className="text-[11px] font-semibold text-primary leading-tight">
-                        Nice! Placing 1 brick and growing your house.
-                      </p>
-                    </div>
-                  )}
+                  {parseInt(customMinutes, 10) >= user.comfortableMinutes && (() => {
+                    const mins = parseInt(customMinutes, 10)
+                    const milestone = getMilestoneTag(mins, user.comfortableMinutes)
+                    if (!milestone) return null
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 px-3 py-2.5 bg-primary/10 border border-primary/25 rounded-2xl">
+                          <Sparkles size={15} className="text-primary shrink-0" style={{ transform: 'rotate(15deg)' }} />
+                          <p className="text-[11px] font-semibold text-primary leading-tight">
+                            Nice! Placing 1 brick and growing your house.
+                          </p>
+                        </div>
+                        <div className="bg-muted/30 border border-border rounded-2xl p-3 flex flex-col gap-1.5">
+                          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider text-left">Milestones</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-success/10 text-success border border-success/20 px-2 py-0.5 rounded-full">
+                              🏆 Baseline Achieved
+                            </span>
+                            {milestone.bonus && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full">
+                                {milestone.icon} {milestone.bonus}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 <div className="flex gap-3 mt-6">

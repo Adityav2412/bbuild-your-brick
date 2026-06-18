@@ -9,6 +9,7 @@ export type Screen =
   | 'welcome-back'
   | 'import'
   | 'update'
+  | 'history'
 
 export type SessionFeedback = 'easy' | 'comfortable' | 'difficult' | 'couldnt-finish'
 
