@@ -9,9 +9,7 @@ export function registerServiceWorker(): void {
   if (typeof window === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
 
-  // Register after the page has fully loaded to avoid competing with
-  // critical resource fetches during initial paint.
-  window.addEventListener("load", async () => {
+  const register = async () => {
     try {
       const registration = await navigator.serviceWorker.register("/sw.js", {
         scope: "/",
@@ -32,5 +30,11 @@ export function registerServiceWorker(): void {
       // SW registration failure must never break the app.
       console.warn("[Brick] SW registration failed:", e);
     }
-  });
+  };
+
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    register();
+  } else {
+    window.addEventListener("load", register);
+  }
 }
