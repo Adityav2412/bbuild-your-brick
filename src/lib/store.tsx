@@ -467,8 +467,7 @@ function reducer(state: AppState, action: Action): AppState {
         ].slice(-30)
 
         // House stage advancement
-        const progressMultiplier = actualMinutes / baseline
-        const addedEffectiveMinutes = actualMinutes * progressMultiplier
+        const addedEffectiveMinutes = actualMinutes
         const currentEffective = state.user.totalEffectiveMinutes ?? state.user.totalMinutes
         const projectedEffective = currentEffective + addedEffectiveMinutes
 
