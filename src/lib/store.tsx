@@ -71,6 +71,7 @@ export type Action =
   | { type: 'UPDATE_AVATAR'; avatarUrl: string | null }
   | { type: 'RESET_APP' }
   | { type: 'HYDRATE'; state: Partial<AppState> }
+  | { type: 'UPDATE_SESSION_NOTES'; sessionId: string; notes: string }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -602,6 +603,13 @@ function reducer(state: AppState, action: Action): AppState {
 
     case 'HYDRATE':
       return { ...state, ...action.state }
+
+    case 'UPDATE_SESSION_NOTES': {
+      const sessions = state.sessions.map((s) =>
+        s.id === action.sessionId ? { ...s, studyNotes: action.notes } : s
+      )
+      return { ...state, sessions }
+    }
 
     default:
       return state

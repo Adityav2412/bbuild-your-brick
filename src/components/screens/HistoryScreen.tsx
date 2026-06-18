@@ -8,7 +8,7 @@ import type { StudySessionRecord } from '@/lib/types'
 import SubjectIcon from '@/components/SubjectIcon'
 
 export default function HistoryScreen() {
-  const { state } = useStore()
+  const { state, dispatch } = useStore()
   const { sessions, subjects, user } = state
   const [selectedSession, setSelectedSession] = useState<StudySessionRecord | null>(null)
   
@@ -307,6 +307,29 @@ export default function HistoryScreen() {
                   </div>
                 </>
               )}
+            </div>
+
+            {/* Study Notes */}
+            <div className="space-y-1.5 text-left">
+              <span className="text-[10px] text-muted-foreground block leading-none uppercase tracking-wider font-semibold">
+                Study Notes
+              </span>
+              <textarea
+                value={selectedSession.studyNotes || ''}
+                onChange={(e) => {
+                  dispatch({
+                    type: 'UPDATE_SESSION_NOTES',
+                    sessionId: selectedSession.id,
+                    notes: e.target.value,
+                  })
+                  setSelectedSession({
+                    ...selectedSession,
+                    studyNotes: e.target.value,
+                  })
+                }}
+                placeholder="Write editable study notes here..."
+                className="w-full h-20 p-2.5 text-xs bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none text-foreground"
+              />
             </div>
 
             {/* Extra session metadata if available */}

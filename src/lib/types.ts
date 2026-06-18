@@ -105,6 +105,7 @@ export interface StudySessionRecord {
   completed: boolean
   feedback: SessionFeedback | null
   missedReason?: StudyReason | string
+  studyNotes?: string
 }
 
 export interface TodayScheduleItem {
