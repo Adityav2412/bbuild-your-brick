@@ -98,7 +98,7 @@ function StepPersonal() {
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          Brick adapts to your pace, but it will never recommend more than 2 hours in a single session.
+          Brick builds your home brick by brick, and you can customize your daily baseline anytime in Settings.
         </p>
       </div>
     </div>

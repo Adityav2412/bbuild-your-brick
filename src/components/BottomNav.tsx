@@ -1,6 +1,6 @@
 'use client'
 
-import { Home, CalendarDays, TrendingUp, Settings, Timer, History } from 'lucide-react'
+import { Home, CalendarDays, TrendingUp, Settings, History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useStore } from '@/lib/store'
 import type { Screen } from '@/lib/types'

@@ -311,7 +311,7 @@ const MENTOR_POOLS = {
     "Begin again — softly. That is enough for today.",
   ],
   recoveryMid: [
-    "Welcome back. Today's study session is lighter on purpose.",
+    "Welcome back. Today's study target is lighter on purpose.",
     "Glad you returned. We start from where you are.",
   ],
   recoveryShort: [
@@ -320,11 +320,11 @@ const MENTOR_POOLS = {
   ],
   lowEnergy: [
     "Let's keep today simple. Showing up is enough.",
-    "A small study session today. That still counts.",
+    "A small study amount today. That still counts.",
     "Quiet effort still moves the work forward.",
   ],
   okayEnergy: [
-    "A calm, steady session today. Nothing more.",
+    "A calm, steady study day today. Nothing more.",
     "Today, just enough. Tomorrow can be more.",
   ],
   consistent: [
@@ -347,7 +347,7 @@ function pickFromPool(pool: string[], seed: number): string {
 // Stage-specific mentor lines. Spoken once when the user just crossed into a new stage.
 const STAGE_LINES: Partial<Record<HouseStage["key"], string>> = {
   "foundation-complete": "The foundation is set. The home has its footing.",
-  "walls-rising": "One more session and the first wall will rise higher.",
+  "walls-rising": "One more study day and the first wall will rise higher.",
   window: "A window appeared. Light enters the home.",
   door: "A door now opens. The home is yours to step into.",
   "roof-framework": "The roof beams are up. Shelter is forming overhead.",
@@ -889,7 +889,7 @@ export function applyMissedDayRecovery(
       newCapacity: Math.max(floor, Math.round(currentCapacity * 0.8)),
       recoveryMode: true,
       needsRecoveryOnboarding: false,
-      mentorNote: "Welcome back. Today\u2019s session is lighter on purpose.",
+      mentorNote: "Welcome back. Today\u2019s daily target is lighter on purpose.",
     };
   }
   if (daysAwayCount >= 4) {

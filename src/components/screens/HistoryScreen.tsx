@@ -203,17 +203,23 @@ export default function HistoryScreen() {
             </div>
 
             {/* Metrics */}
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-3 gap-2">
               <div className="bg-card rounded-2xl border border-border p-3">
-                <span className="text-[10px] text-muted-foreground block leading-none">Studied</span>
-                <p className="text-xl font-extrabold text-foreground tracking-tight mt-1">
+                <span className="text-[10px] text-muted-foreground block leading-none">Minutes</span>
+                <p className="text-lg font-extrabold text-foreground tracking-tight mt-1">
                   {selectedSession.actualMinutes}m
                 </p>
               </div>
               <div className="bg-card rounded-2xl border border-border p-3">
-                <span className="text-[10px] text-muted-foreground block leading-none">Target Goal</span>
-                <p className="text-xl font-extrabold text-foreground tracking-tight mt-1">
-                  {selectedSession.plannedMinutes || user.comfortableMinutes}m
+                <span className="text-[10px] text-muted-foreground block leading-none">Baseline</span>
+                <p className="text-lg font-extrabold text-foreground tracking-tight mt-1">
+                  {user.comfortableMinutes}m
+                </p>
+              </div>
+              <div className="bg-card rounded-2xl border border-border p-3">
+                <span className="text-[10px] text-muted-foreground block leading-none">House Progress</span>
+                <p className="text-lg font-extrabold text-primary tracking-tight mt-1">
+                  +{selectedSession.completed ? selectedSession.actualMinutes : 0}m
                 </p>
               </div>
             </div>
