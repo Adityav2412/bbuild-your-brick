@@ -22,22 +22,6 @@ function StepPersonal() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <label className="block text-sm font-medium text-foreground mb-2" htmlFor="name">
-          What should we call you?
-        </label>
-        <input
-          id="name"
-          type="text"
-          placeholder="Your name"
-          value={draft.name}
-          onChange={(e) =>
-            dispatch({ type: 'UPDATE_DRAFT', draft: { name: e.target.value } })
-          }
-          className="w-full h-13 px-4 rounded-2xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 text-base"
-        />
-      </div>
-
-      <div>
         <label className="block text-sm font-medium text-foreground mb-3">
           How long can you comfortably study per session?
         </label>
@@ -105,54 +89,7 @@ function StepPersonal() {
   )
 }
 
-// ─── Step 2: Exam Info ────────────────────────────────────────────────────────
 
-function StepExam() {
-  const { state, dispatch } = useStore()
-  const { draft } = state
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2" htmlFor="exam">
-          What are you preparing for?
-        </label>
-        <input
-          id="exam"
-          type="text"
-          placeholder="e.g. NEET 2025, Final Exams, UPSC"
-          value={draft.examName}
-          onChange={(e) =>
-            dispatch({ type: 'UPDATE_DRAFT', draft: { examName: e.target.value } })
-          }
-          className="w-full h-13 px-4 rounded-2xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 text-base"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2" htmlFor="date">
-          When is the exam?
-        </label>
-        <input
-          id="date"
-          type="date"
-          value={draft.examDate}
-          min={new Date().toISOString().split('T')[0]}
-          onChange={(e) =>
-            dispatch({ type: 'UPDATE_DRAFT', draft: { examDate: e.target.value } })
-          }
-          className="w-full h-13 px-4 rounded-2xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 text-base"
-        />
-      </div>
-
-      <div className="bg-muted rounded-2xl p-4">
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          This helps us pace your study sessions and show you a countdown. You can always change it later.
-        </p>
-      </div>
-    </div>
-  )
-}
 
 // ─── Step 3: Import Lectures ──────────────────────────────────────────────────
 
@@ -395,7 +332,7 @@ function StepImport({
 
 // ─── Main Onboarding ──────────────────────────────────────────────────────────
 
-const STEPS = ['About You', 'Your Exam', 'Your Subjects']
+const STEPS = ['Study Baseline', 'Your Subjects']
 
 export default function OnboardingScreen() {
   const { state, dispatch } = useStore()
@@ -404,8 +341,7 @@ export default function OnboardingScreen() {
 
   const canProceed = () => {
     if (step === 0) return state.draft.comfortableMinutes > 0
-    if (step === 1) return true // exam info optional
-    if (step === 2) {
+    if (step === 1) {
       const total = subjects.reduce((acc, s) => acc + s.lectures.length, 0)
       return subjects.length > 0 && total > 0
     }
@@ -464,22 +400,18 @@ export default function OnboardingScreen() {
         <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-primary/80 mb-1">
           {step === 0 && 'Chapter One'}
           {step === 1 && 'Chapter Two'}
-          {step === 2 && 'Chapter Three'}
         </p>
         <h2 className="font-heading text-3xl text-foreground mb-1 text-balance leading-tight">
-          {step === 0 && 'Tell us about yourself'}
-          {step === 1 && 'What are you building toward?'}
-          {step === 2 && 'Bring in your subjects'}
+          {step === 0 && 'Set your daily baseline'}
+          {step === 1 && 'Bring in your subjects'}
         </h2>
         <p className="text-sm text-muted-foreground mb-6 leading-relaxed italic">
-          {step === 0 && 'A few quiet questions — so today\'s recommendation fits you.'}
-          {step === 1 && 'Optional. A horizon line, gently kept in view.'}
-          {step === 2 && 'Drop in your lectures. Brick handles the rest.'}
+          {step === 0 && 'How long would you comfortably like to study per session?'}
+          {step === 1 && 'Drop in your lectures. Brick handles the rest.'}
         </p>
 
         {step === 0 && <StepPersonal />}
-        {step === 1 && <StepExam />}
-        {step === 2 && <StepImport subjects={subjects} setSubjects={setSubjects} />}
+        {step === 1 && <StepImport subjects={subjects} setSubjects={setSubjects} />}
       </div>
 
       {/* Bottom CTA */}
