@@ -401,6 +401,7 @@ function reducer(state: AppState, action: Action): AppState {
           state.user.houseEffortScore,
           getSyllabusProgress(state.subjects),
           { fraction: prevFloor, totalMinutes: state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes },
+          state.user.totalMinutes,
         )
         const projectedSessions = state.user.totalSessions + 1
         const nextHouse = getHouseState(
@@ -408,6 +409,7 @@ function reducer(state: AppState, action: Action): AppState {
           (state.user.houseEffortScore ?? 0) + effortBonus,
           newSyll,
           { fraction: nextFloor, totalMinutes: nextFloorTotal },
+          state.user.totalMinutes + actualMinutes,
         )
         const stageAdvanced =
           !nextHouse.stage.isExpansion && nextHouse.level > prevHouse.level

@@ -11,7 +11,6 @@ import {
   getHouseScale,
   formatMinutes,
   daysAway,
-  adjustCapacityForEnergy,
   getLogicalStudyDate,
 } from '@/lib/algorithm'
 import SubjectIcon from '@/components/SubjectIcon'
@@ -45,19 +44,6 @@ export default function HomeScreen() {
   const energySetToday = user.energyDate === today
   const todayEnergy: EnergyLevel | null = energySetToday ? (user.todayEnergy ?? null) : null
 
-  const mentorMessage =
-    user.lastMentorNote ||
-    getMentorMessage({
-      totalSessions: user.totalSessions,
-      recentFeedback: user.recentFeedback ?? [],
-      daysSinceLastStudy: daysAway(user.lastStudyDate),
-      recoveryMode: user.recoveryMode,
-      progressionPaused: user.progressionPaused,
-      energy: todayEnergy,
-    })
-
-  const effectiveRhythm = adjustCapacityForEnergy(user.currentCapacity, todayEnergy)
-
   const todayFocus = todaySchedule[0]
   const focusSubject = subjects.find((s) => s.id === todayFocus?.subjectId)
   const focusLecture = focusSubject?.lectures.find((l) => l.id === todayFocus?.lectureId)
@@ -70,8 +56,26 @@ export default function HomeScreen() {
       fraction: user.houseProgressFloor ?? 0,
       totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes,
     },
+    user.totalMinutes,
   )
   const scale = getHouseScale(syllabus.totalMinutes)
+
+  const lastSession = state.sessions[state.sessions.length - 1] ?? null
+  const lastSessionMinutes = lastSession && lastSession.completed && lastSession.date === today ? lastSession.actualMinutes : 0
+
+  const mentorMessage =
+    user.lastMentorNote ||
+    getMentorMessage({
+      totalSessions: user.totalSessions,
+      recentFeedback: user.recentFeedback ?? [],
+      daysSinceLastStudy: daysAway(user.lastStudyDate),
+      recoveryMode: user.recoveryMode,
+      progressionPaused: user.progressionPaused,
+      energy: todayEnergy,
+      totalMinutes: user.totalMinutes,
+      lastSessionMinutes,
+      houseStageLabel: house.stage.label,
+    })
 
   const daysUntilExam = user.examDate
     ? Math.max(0, Math.ceil((new Date(user.examDate).getTime() - Date.now()) / 86400000))
@@ -285,32 +289,17 @@ export default function HomeScreen() {
           </div>
         )}
 
-        {/* Rhythm + countdown row */}
-        <div className="flex items-stretch gap-3">
-          <div className="flex-1 px-4 py-3 bg-card rounded-2xl border border-border">
-            <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-              Today's rhythm
+        {/* Countdown row */}
+        {daysUntilExam !== null && daysUntilExam <= 120 && (
+          <div className="px-4 py-3 bg-card rounded-2xl border border-border">
+            <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
+              Days until {user.examName}
             </p>
-            <p className="text-base font-extrabold text-foreground tracking-tight">
-              {formatMinutes(effectiveRhythm)}
-              {todayEnergy && todayEnergy !== 'good' && effectiveRhythm !== user.currentCapacity && (
-                <span className="ml-1.5 text-[10px] text-muted-foreground font-medium">
-                  ({todayEnergy === 'low' ? 'low' : 'okay'})
-                </span>
-              )}
+            <p className="text-base font-extrabold text-primary tracking-tight">
+              {daysUntilExam} days left
             </p>
           </div>
-          {daysUntilExam !== null && daysUntilExam <= 120 && (
-            <div className="flex-1 px-4 py-3 bg-card rounded-2xl border border-border">
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider truncate">
-                {user.examName}
-              </p>
-              <p className="text-base font-extrabold text-primary tracking-tight">
-                {daysUntilExam}d left
-              </p>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Place Today's Brick button */}
         {todayFocus && (

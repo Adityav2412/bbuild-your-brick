@@ -74,23 +74,16 @@ export function adjustCapacityFromStudyTime(
   maxRhythm = Math.min(maxRhythm, RHYTHM_CEILING);
   const floor = Math.max(RHYTHM_FLOOR, Math.round(comfortableMinutes * 0.5));
   let newCapacity = currentCapacity;
-  let note: string | null = null;
 
   if (actualMinutes > currentCapacity) {
     newCapacity = Math.min(maxRhythm, currentCapacity + 2);
-    if (newCapacity > currentCapacity) {
-      note = "Your rhythm grew by a few minutes. Quietly.";
-    }
   } else if (actualMinutes < currentCapacity) {
     newCapacity = Math.max(floor, currentCapacity - 2);
-    if (newCapacity < currentCapacity) {
-      note = "Easing things down a touch. Tomorrow we begin again.";
-    }
   }
 
   return {
     newCapacity,
-    note,
+    note: null,
   };
 }
 
@@ -289,63 +282,53 @@ export interface MentorContext {
   houseStageKey?: HouseStage["key"];
   /** True only on the day the user just crossed into a new house stage. */
   houseStageJustChanged?: boolean;
+  // V3 additions
+  totalMinutes?: number;
+  lastSessionMinutes?: number;
+  houseStageLabel?: string;
+  streakDays?: number;
 }
 
 const GENERAL_MESSAGES = [
-  "Focus on today\u2019s brick.",
+  "Focus on today's brick.",
   "Small steps build strong foundations.",
-  "Today\u2019s effort matters.",
-  "One session at a time.",
+  "Today's effort matters.",
   "Consistency grows quietly.",
-  "You don\u2019t need to plan. Just begin.",
-  "Show up. Place the brick. That\u2019s the whole job.",
+  "You don't need to plan. Just begin.",
+  "Show up. Place the brick. That's the whole job.",
   "A home is built one brick at a time.",
   "Progress is patient. So are you.",
   "The work you do today settles into your foundation.",
+  "Consistency builds the house.",
+  "Today's effort moved the house forward."
 ];
 
 const MENTOR_POOLS = {
   recoveryLong: [
-    "Welcome back. We\u2019ll rebuild gradually, one quiet brick at a time.",
+    "Welcome back. We'll rebuild gradually, one quiet brick at a time.",
     "No rush. The home is still here, waiting.",
     "Begin again — softly. That is enough for today.",
   ],
   recoveryMid: [
-    "Welcome back. Today\u2019s session is lighter on purpose.",
+    "Welcome back. Today's study session is lighter on purpose.",
     "Glad you returned. We start from where you are.",
   ],
   recoveryShort: [
-    "Glad you\u2019re here. We\u2019ll ease back into your rhythm.",
+    "Glad you're here. We'll ease back into your study window.",
     "A short pause is fine. Today we resume gently.",
   ],
   lowEnergy: [
-    "Let\u2019s keep today\u2019s session simple. Showing up is enough.",
-    "A small session today. That still counts.",
+    "Let's keep today simple. Showing up is enough.",
+    "A small study session today. That still counts.",
     "Quiet effort still moves the work forward.",
   ],
   okayEnergy: [
     "A calm, steady session today. Nothing more.",
     "Today, just enough. Tomorrow can be more.",
   ],
-  paused: [
-    "Holding steady today. Strength is also built in pauses.",
-    "No growth today. Just consistency. That is the work.",
-  ],
-  difficult: [
-    "Let\u2019s keep today\u2019s session simple.",
-    "Hard days teach the body the rhythm. We continue gently.",
-  ],
-  grew: [
-    "Your rhythm is becoming more natural. Quietly, it grew.",
-    "A small step up. Earned, not pushed.",
-  ],
   consistent: [
     "Steady. Consistent. This is how homes get built.",
     "The pattern is holding. That is the whole point.",
-  ],
-  flowing: [
-    "You\u2019re moving well. Keep the same calm pace.",
-    "Easy days are gifts. Receive them.",
   ],
   houseMilestone: [
     "A new stage of your home is taking shape.",
@@ -383,7 +366,22 @@ export function getMentorMessage(contextOrTotal: MentorContext | number): string
   );
   const seed = dayOfYear + ctx.totalSessions;
 
-  // House milestone takes priority — it's a one-time, contextual celebration.
+  // 1. Dynamic minutes logged today celebrations (V3)
+  if (ctx.lastSessionMinutes && ctx.lastSessionMinutes >= 20) {
+    const minutesPool = [
+      `You studied ${ctx.lastSessionMinutes} minutes today.`,
+      `Today's effort of ${ctx.lastSessionMinutes} minutes moved the house forward.`,
+      `With ${ctx.lastSessionMinutes} minutes logged, another brick is added to your foundation.`,
+    ];
+    return pickFromPool(minutesPool, seed);
+  }
+
+  // 2. Streaks and total study minutes celebrations (V3)
+  if (ctx.streakDays && ctx.streakDays >= 3) {
+    return `You're on a ${ctx.streakDays}-day consistency streak. The house stands strong.`;
+  }
+
+  // 3. House milestone takes priority — it's a one-time, contextual celebration.
   if (ctx.houseStageJustChanged && ctx.houseStageKey) {
     const line = STAGE_LINES[ctx.houseStageKey];
     if (line) return line;
@@ -398,16 +396,18 @@ export function getMentorMessage(contextOrTotal: MentorContext | number): string
   if (ctx.energy === "low") return pickFromPool(MENTOR_POOLS.lowEnergy, seed);
   if (ctx.energy === "okay") return pickFromPool(MENTOR_POOLS.okayEnergy, seed);
 
-  if (ctx.progressionPaused) return pickFromPool(MENTOR_POOLS.paused, seed);
-
-  const last3 = ctx.recentFeedback.slice(-3);
-  if (last3.length === 3 && last3.every((f) => f === "difficult"))
-    return pickFromPool(MENTOR_POOLS.difficult, seed);
-  if (ctx.rhythmGrew) return pickFromPool(MENTOR_POOLS.grew, seed);
-  if (last3.length === 3 && last3.every((f) => f === "easy"))
-    return pickFromPool(MENTOR_POOLS.flowing, seed);
   if (ctx.totalSessions >= 7 && ctx.daysSinceLastStudy <= 1)
     return pickFromPool(MENTOR_POOLS.consistent, seed);
+
+  // Fallback to total minutes / house stage details if provided (V3)
+  if (ctx.totalMinutes && ctx.totalMinutes > 0) {
+    const totalMinutesPool = [
+      `Your house represents ${ctx.totalMinutes} total minutes of study.`,
+      `Every minute of study is a stone in your ${ctx.houseStageLabel || 'home'}.`,
+      `Your total study time is now ${formatMinutes(ctx.totalMinutes)}.`,
+    ];
+    return pickFromPool(totalMinutesPool, seed);
+  }
 
   return pickFromPool(MENTOR_POOLS.general, seed);
 }
@@ -633,8 +633,10 @@ export function getHouseState(
   effortScore?: number,
   syllabus?: SyllabusProgress,
   floor?: HouseFloor,
+  totalStudyMinutes?: number,
 ): HouseState {
   const bricks = Math.max(0, totalSessions);
+  const virtualBricks = totalStudyMinutes !== undefined ? totalStudyMinutes / 20 : bricks;
 
   // ── Syllabus-driven progression ───────────────────────────────────────────
   if (syllabus && syllabus.totalMinutes > 0) {
@@ -689,23 +691,23 @@ export function getHouseState(
   // ── Fallback: brick-count progression (legacy) ────────────────────────────
   let level = 0;
   for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
-    if (bricks >= HOUSE_STAGES[i].bricksRequired) {
+    if (virtualBricks >= HOUSE_STAGES[i].bricksRequired) {
       level = i;
       break;
     }
   }
   const stage = HOUSE_STAGES[level];
   const nextStage = HOUSE_STAGES[level + 1] ?? null;
-  const bricksToNext = nextStage ? Math.max(0, nextStage.bricksRequired - bricks) : 0;
+  const bricksToNext = nextStage ? Math.max(0, nextStage.bricksRequired - virtualBricks) : 0;
   const stageSpan = nextStage ? nextStage.bricksRequired - stage.bricksRequired : 1;
-  let withinFromBricks = nextStage ? bricks - stage.bricksRequired : stageSpan;
+  let withinFromBricks = nextStage ? virtualBricks - stage.bricksRequired : stageSpan;
   if (effortScore !== undefined && nextStage) {
     const baseEffort = HOUSE_STAGES[level].bricksRequired;
     withinFromBricks = Math.min(stageSpan, Math.max(withinFromBricks, effortScore - baseEffort));
   }
   const stageFraction = stageSpan > 0 ? Math.min(1, withinFromBricks / stageSpan) : 1;
   const totalBricksForFull = HOUSE_STAGES[7].bricksRequired;
-  const fraction = Math.min(1, bricks / totalBricksForFull);
+  const fraction = Math.min(1, virtualBricks / totalBricksForFull);
 
   return {
     bricks,
@@ -765,7 +767,7 @@ export const getObservatoryState = (totalSessions: number) => {
 
 export function getLogicalStudyDate(date: Date = new Date()): string {
   const d = new Date(date);
-  if (d.getHours() < 12) {
+  if (d.getHours() < 4) {
     d.setDate(d.getDate() - 1);
   }
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
