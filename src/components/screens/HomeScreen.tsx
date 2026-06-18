@@ -57,6 +57,8 @@ export default function HomeScreen() {
       totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes,
     },
     user.totalMinutes,
+    user.totalEffectiveMinutes ?? user.totalMinutes,
+    user.comfortableMinutes,
   )
   const scale = getHouseScale(syllabus.totalMinutes)
 
@@ -87,9 +89,10 @@ export default function HomeScreen() {
   const [customMinutes, setCustomMinutes] = useState<string>('')
 
   const handleLogLess = (reason: string) => {
+    const mins = parseInt(customMinutes, 10)
     dispatch({
       type: 'LOG_STUDY_DAY',
-      actualMinutes: 0,
+      actualMinutes: isNaN(mins) ? 0 : mins,
       reason,
     })
     closeModal()
@@ -98,7 +101,7 @@ export default function HomeScreen() {
   const handleLogBaseline = () => {
     dispatch({
       type: 'LOG_STUDY_DAY',
-      actualMinutes: 20,
+      actualMinutes: user.comfortableMinutes,
     })
     closeModal()
   }
@@ -106,11 +109,15 @@ export default function HomeScreen() {
   const handleLogCustom = () => {
     const mins = parseInt(customMinutes, 10)
     if (isNaN(mins) || mins <= 0) return
-    dispatch({
-      type: 'LOG_STUDY_DAY',
-      actualMinutes: mins,
-    })
-    closeModal()
+    if (mins < user.comfortableMinutes) {
+      setModalStep('reasons')
+    } else {
+      dispatch({
+        type: 'LOG_STUDY_DAY',
+        actualMinutes: mins,
+      })
+      closeModal()
+    }
   }
 
   const closeModal = () => {
@@ -209,7 +216,7 @@ export default function HomeScreen() {
           <div className="bg-card rounded-3xl border border-border overflow-hidden shadow-warm">
             <div className="px-5 pt-4 pb-1 flex items-center justify-between">
               <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">
-                Today's brick
+                {hasPlacedToday ? "Next Subject" : "Today's brick"} · {user.comfortableMinutes}m baseline
               </p>
               <span className="text-[10px] font-mono text-muted-foreground">
                 {new Date().toLocaleDateString(undefined, {
@@ -354,7 +361,7 @@ export default function HomeScreen() {
                     onClick={() => setModalStep('reasons')}
                     className="w-full h-14 bg-background hover:bg-muted/30 border border-border rounded-2xl font-semibold text-foreground flex items-center justify-between px-5 transition-all active:scale-[0.99]"
                   >
-                    <span className="text-sm">Less than 20 minutes</span>
+                    <span className="text-sm">Less than {user.comfortableMinutes} minutes</span>
                     <span className="text-muted-foreground text-xs font-normal">No brick awarded</span>
                   </button>
 
@@ -362,7 +369,7 @@ export default function HomeScreen() {
                     onClick={handleLogBaseline}
                     className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold flex items-center justify-between px-5 transition-all active:scale-[0.99] shadow-warm"
                   >
-                    <span className="text-sm">20 minutes</span>
+                    <span className="text-sm">{user.comfortableMinutes} minutes</span>
                     <span className="text-primary-foreground/85 text-xs font-semibold">Place 1 Brick</span>
                   </button>
 
@@ -388,7 +395,7 @@ export default function HomeScreen() {
               <div className="space-y-5">
                 <div className="text-center">
                   <h3 className="text-xl font-extrabold text-foreground tracking-tight">
-                    Why did you study less than 20 minutes today?
+                    Why did you study less than {user.comfortableMinutes} minutes today?
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">
                     Your reason is noted in your study history. We'll adjust tomorrow's study recommendation.
@@ -417,7 +424,13 @@ export default function HomeScreen() {
 
                 <div className="flex gap-3 mt-4">
                   <button
-                    onClick={() => setModalStep('options')}
+                    onClick={() => {
+                      if (customMinutes) {
+                        setModalStep('custom')
+                      } else {
+                        setModalStep('options')
+                      }
+                    }}
                     className="flex-1 h-12 bg-muted/40 hover:bg-muted/60 text-foreground rounded-2xl text-sm font-bold transition-all"
                   >
                     Back
@@ -479,16 +492,16 @@ export default function HomeScreen() {
                     </button>
                   </div>
 
-                  {parseInt(customMinutes, 10) < 20 && customMinutes !== '' && (
+                  {parseInt(customMinutes, 10) < user.comfortableMinutes && customMinutes !== '' && (
                     <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/25 rounded-2xl">
                       <AlertCircle size={15} className="text-destructive shrink-0" />
                       <p className="text-[11px] font-medium text-destructive leading-tight">
-                        Under 20 minutes does not award a brick or house progress.
+                        Under {user.comfortableMinutes} minutes does not award a brick or house progress.
                       </p>
                     </div>
                   )}
 
-                  {parseInt(customMinutes, 10) >= 20 && (
+                  {parseInt(customMinutes, 10) >= user.comfortableMinutes && (
                     <div className="flex items-center gap-2 px-3 py-2.5 bg-primary/10 border border-primary/25 rounded-2xl">
                       <Sparkles size={15} className="text-primary shrink-0" style={{ transform: 'rotate(15deg)' }} />
                       <p className="text-[11px] font-semibold text-primary leading-tight">

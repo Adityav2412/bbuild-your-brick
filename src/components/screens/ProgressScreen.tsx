@@ -100,7 +100,18 @@ export default function ProgressScreen() {
   if (!user) return null
 
   const syllabus = getSyllabusProgress(subjects)
-  const house = getHouseState(user.totalSessions, user.houseEffortScore, syllabus, { fraction: user.houseProgressFloor ?? 0, totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes })
+  const house = getHouseState(
+    user.totalSessions,
+    user.houseEffortScore,
+    syllabus,
+    {
+      fraction: user.houseProgressFloor ?? 0,
+      totalMinutes: user.houseFloorTotalMinutes ?? syllabus.totalMinutes,
+    },
+    user.totalMinutes,
+    user.totalEffectiveMinutes ?? user.totalMinutes,
+    user.comfortableMinutes,
+  )
   const scale = getHouseScale(syllabus.totalMinutes)
 
   // Subject-level progress
@@ -250,6 +261,56 @@ export default function ProgressScreen() {
                         className="h-full bg-success rounded-full transition-all duration-500"
                         style={{ width: `${pct}%` }}
                       />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        {/* Study History */}
+        {state.sessions.length > 0 && (
+          <div>
+            <h3 className="font-semibold text-base text-foreground tracking-tight mb-3">
+              Study History
+            </h3>
+            <div className="flex flex-col gap-3">
+              {state.sessions.slice().reverse().map((session) => {
+                const dateObj = new Date(session.date)
+                const dateStr = dateObj.toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'short',
+                })
+                return (
+                  <div key={session.id} className="bg-card rounded-3xl border border-border p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-mono text-muted-foreground">{dateStr}</p>
+                      <p className="text-sm font-semibold text-foreground mt-0.5">
+                        {session.subjectName || 'General Study'}
+                      </p>
+                      {session.lectureName && (
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {session.lectureName}
+                        </p>
+                      )}
+                      {!session.completed && session.missedReason && (
+                        <p className="text-xs text-destructive italic mt-1">
+                          Reason: {session.missedReason}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-heading text-lg text-foreground font-bold">
+                        {session.actualMinutes} min
+                      </p>
+                      <span className={cn(
+                        'inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1',
+                        session.completed 
+                          ? 'bg-success/10 text-success' 
+                          : 'bg-destructive/10 text-destructive'
+                      )}>
+                        {session.completed ? 'Brick Earned' : 'No Brick'}
+                      </span>
                     </div>
                   </div>
                 )

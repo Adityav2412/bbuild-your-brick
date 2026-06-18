@@ -32,6 +32,7 @@ export interface User {
   onboardingComplete: boolean
   totalSessions: number
   totalMinutes: number
+  totalEffectiveMinutes?: number
   joinDate: string
   /** Optional avatar image data URL or URL */
   avatarUrl: string | null

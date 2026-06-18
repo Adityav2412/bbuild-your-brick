@@ -635,6 +635,8 @@ export function getHouseState(
   syllabus?: SyllabusProgress,
   floor?: HouseFloor,
   totalStudyMinutes?: number,
+  totalEffectiveMinutes?: number,
+  baselineMinutes: number = 20,
 ): HouseState {
   const bricks = Math.max(0, totalSessions);
 
@@ -669,7 +671,7 @@ export function getHouseState(
       ? Math.max(0, (nextStage.fractionRequired - fraction) * syllabus.totalMinutes)
       : 0;
     const bricksToNext = nextStage
-      ? Math.max(1, Math.ceil(minutesToNext / 20))
+      ? Math.max(1, Math.ceil(minutesToNext / baselineMinutes))
       : 0;
 
     return {
@@ -688,11 +690,12 @@ export function getHouseState(
   }
 
   // ── Fallback: study minutes progression (direct scale, no virtual bricks) ──
-  const minutesStudied = totalStudyMinutes !== undefined ? totalStudyMinutes : (bricks * 20);
+  const baseline = baselineMinutes;
+  const effectiveMinutesStudied = totalEffectiveMinutes !== undefined ? totalEffectiveMinutes : (bricks * baseline);
   let level = 0;
   for (let i = HOUSE_STAGES.length - 1; i >= 0; i--) {
-    const minutesRequired = HOUSE_STAGES[i].bricksRequired * 20;
-    if (minutesStudied >= minutesRequired) {
+    const minutesRequired = HOUSE_STAGES[i].bricksRequired * baseline;
+    if (effectiveMinutesStudied >= minutesRequired) {
       level = i;
       break;
     }
@@ -700,18 +703,18 @@ export function getHouseState(
   const stage = HOUSE_STAGES[level];
   const nextStage = HOUSE_STAGES[level + 1] ?? null;
   
-  const currentStageMinutes = stage.bricksRequired * 20;
-  const nextStageMinutes = nextStage ? nextStage.bricksRequired * 20 : currentStageMinutes;
+  const currentStageMinutes = stage.bricksRequired * baseline;
+  const nextStageMinutes = nextStage ? nextStage.bricksRequired * baseline : currentStageMinutes;
   const stageSpanMinutes = nextStageMinutes - currentStageMinutes;
   
-  const minutesToNext = nextStage ? Math.max(0, nextStageMinutes - minutesStudied) : 0;
-  const bricksToNext = nextStage ? Math.ceil(minutesToNext / 20) : 0;
+  const minutesToNext = nextStage ? Math.max(0, nextStageMinutes - effectiveMinutesStudied) : 0;
+  const bricksToNext = nextStage ? Math.ceil(minutesToNext / baseline) : 0;
   
-  let withinFromMinutes = nextStage ? minutesStudied - currentStageMinutes : stageSpanMinutes;
+  let withinFromMinutes = nextStage ? effectiveMinutesStudied - currentStageMinutes : stageSpanMinutes;
   const stageFraction = stageSpanMinutes > 0 ? Math.min(1, withinFromMinutes / stageSpanMinutes) : 1;
   
-  const minutesForFull = HOUSE_STAGES[7].bricksRequired * 20;
-  const fraction = Math.min(1, minutesStudied / minutesForFull);
+  const minutesForFull = HOUSE_STAGES[7].bricksRequired * baseline;
+  const fraction = Math.min(1, effectiveMinutesStudied / minutesForFull);
 
   return {
     bricks,

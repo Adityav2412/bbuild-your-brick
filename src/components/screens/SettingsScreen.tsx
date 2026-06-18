@@ -828,6 +828,43 @@ function ResetButton() {
 
 // ─── Main screen ──────────────────────────────────────────────────────────
 
+function BaselineSection() {
+  const { state, dispatch } = useStore()
+  const { user } = state
+  if (!user) return null
+
+  const durations = [15, 20, 30, 45, 60, 90]
+
+  const changeBaseline = (mins: number) => {
+    dispatch({ type: 'UPDATE_USER', updates: { comfortableMinutes: mins } })
+  }
+
+  return (
+    <div className="bg-card rounded-3xl border border-border px-4 py-4">
+      <p className="text-sm font-semibold text-foreground mb-1">Study Baseline</p>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+        The baseline duration is the minimum study minutes required to earn a daily brick and advance your house progression.
+      </p>
+      <div className="grid grid-cols-6 gap-1.5">
+        {durations.map((d) => (
+          <button
+            key={d}
+            onClick={() => changeBaseline(d)}
+            className={cn(
+              'h-9 rounded-xl text-xs font-bold transition-all border',
+              user.comfortableMinutes === d
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                : 'bg-card text-foreground border-border hover:border-primary/20'
+            )}
+          >
+            {d}m
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function SettingsScreen() {
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -847,6 +884,11 @@ export default function SettingsScreen() {
             </h2>
           </div>
           <ProfileSection />
+        </section>
+
+        {/* Study Baseline */}
+        <section>
+          <BaselineSection />
         </section>
 
 

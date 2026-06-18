@@ -232,19 +232,83 @@ function reducer(state: AppState, action: Action): AppState {
       if (!state.user) return state
 
       const today = todayString()
+      const baseline = state.user.comfortableMinutes
 
       // Prevent duplicate brick placements within the same reset window
       const alreadyPlaced = state.sessions.some((s) => s.date === today && s.completed)
       const actualMinutes = action.actualMinutes
-      const isBrick = actualMinutes >= 20
+      const isBrick = actualMinutes >= baseline
 
       if (isBrick && alreadyPlaced) {
         return state
       }
 
       if (!isBrick) {
-        // Less than 20 minutes studied.
+        // Less than baseline minutes studied.
         // No brick awarded, no house progress. Save reason in user history.
+        const minutesAppliedMap: Record<string, number> = {}
+        let remainingMinutes = actualMinutes
+
+        if (remainingMinutes > 0) {
+          // Step 1: Apply to today's scheduled lectures first
+          for (const item of state.todaySchedule) {
+            if (remainingMinutes <= 0) break
+            const sub = state.subjects.find((s) => s.id === item.subjectId)
+            const lec = sub?.lectures.find((l) => l.id === item.lectureId)
+            if (!lec) continue
+
+            const lecRemaining = lec.durationMinutes - lec.watchedMinutes
+            if (lecRemaining <= 0) continue
+
+            const minutesToApply = Math.min(remainingMinutes, lecRemaining)
+            minutesAppliedMap[lec.id] = (minutesAppliedMap[lec.id] || 0) + minutesToApply
+            remainingMinutes -= minutesToApply
+          }
+
+          // Step 2: Roll over to any other pending lectures of scheduled subjects if there are still minutes left
+          if (remainingMinutes > 0) {
+            for (const item of state.todaySchedule) {
+              if (remainingMinutes <= 0) break
+              const sub = state.subjects.find((s) => s.id === item.subjectId)
+              if (!sub) continue
+
+              for (const lec of sub.lectures) {
+                if (lec.status === 'completed') continue
+                const currentApplied = minutesAppliedMap[lec.id] || 0
+                const lecRemaining = lec.durationMinutes - (lec.watchedMinutes + currentApplied)
+                if (lecRemaining <= 0) continue
+
+                const minutesToApply = Math.min(remainingMinutes, lecRemaining)
+                minutesAppliedMap[lec.id] = currentApplied + minutesToApply
+                remainingMinutes -= minutesToApply
+                if (remainingMinutes <= 0) break
+              }
+            }
+          }
+        }
+
+        const updatedSubjects = state.subjects.map((s) => {
+          const hasAppliedMinutes = s.lectures.some((l) => (minutesAppliedMap[l.id] || 0) > 0)
+          if (!hasAppliedMinutes) return s
+
+          return {
+            ...s,
+            lectures: s.lectures.map((l) => {
+              const applied = minutesAppliedMap[l.id] || 0
+              if (applied <= 0) return l
+
+              const newWatched = l.watchedMinutes + applied
+              const isDone = newWatched >= l.durationMinutes
+              return {
+                ...l,
+                watchedMinutes: Math.min(newWatched, l.durationMinutes),
+                status: isDone ? ('completed' as const) : l.status,
+                completedDate: isDone ? today : l.completedDate,
+              }
+            }),
+          }
+        })
+
         const rhythmResult = adjustCapacityFromStudyTime(
           state.user.currentCapacity,
           state.user.comfortableMinutes,
@@ -266,16 +330,22 @@ function reducer(state: AppState, action: Action): AppState {
           currentCapacity: rhythmResult.newCapacity,
           capacityHistory: newHistory,
           lastMentorNote: mentorNote ?? state.user.lastMentorNote ?? null,
+          totalMinutes: state.user.totalMinutes + actualMinutes,
+          totalEffectiveMinutes: state.user.totalEffectiveMinutes ?? state.user.totalMinutes,
         }
 
         const sessionId = makeId()
+        const primaryItem = state.todaySchedule[0] ?? null
+        const primarySub = primaryItem ? state.subjects.find((s) => s.id === primaryItem.subjectId) : null
+        const primaryLec = primaryItem ? primarySub?.lectures.find((l) => l.id === primaryItem.lectureId) : null
+
         const newRecord: StudySessionRecord = {
           id: sessionId,
           date: today,
-          subjectId: '',
-          lectureId: '',
-          subjectName: '',
-          lectureName: '',
+          subjectId: primaryItem?.subjectId ?? '',
+          lectureId: primaryItem?.lectureId ?? '',
+          subjectName: primarySub?.name ?? '',
+          lectureName: primaryLec?.name ?? '',
           plannedMinutes: state.user.currentCapacity,
           actualMinutes,
           completed: false,
@@ -284,7 +354,7 @@ function reducer(state: AppState, action: Action): AppState {
         }
 
         const schedule = buildTodaySchedule(
-          state.subjects,
+          updatedSubjects,
           effectiveCapacity(updatedUser),
           [...state.sessions, newRecord],
         )
@@ -292,12 +362,13 @@ function reducer(state: AppState, action: Action): AppState {
         return {
           ...state,
           user: updatedUser,
+          subjects: updatedSubjects,
           sessions: [...state.sessions, newRecord],
           todaySchedule: schedule,
           screen: 'home',
         }
       } else {
-        // 20 minutes or more studied.
+        // Baseline or more studied.
         // 1 brick placed. Update subject/lecture watched minutes with rollover logic.
         const minutesAppliedMap: Record<string, number> = {}
         let remainingMinutes = actualMinutes
@@ -396,12 +467,19 @@ function reducer(state: AppState, action: Action): AppState {
         ].slice(-30)
 
         // House stage advancement
+        const progressMultiplier = actualMinutes / baseline
+        const addedEffectiveMinutes = actualMinutes * progressMultiplier
+        const currentEffective = state.user.totalEffectiveMinutes ?? state.user.totalMinutes
+        const projectedEffective = currentEffective + addedEffectiveMinutes
+
         const prevHouse = getHouseState(
           state.user.totalSessions,
           state.user.houseEffortScore,
           getSyllabusProgress(state.subjects),
           { fraction: prevFloor, totalMinutes: state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes },
           state.user.totalMinutes,
+          currentEffective,
+          baseline,
         )
         const projectedSessions = state.user.totalSessions + 1
         const nextHouse = getHouseState(
@@ -410,6 +488,8 @@ function reducer(state: AppState, action: Action): AppState {
           newSyll,
           { fraction: nextFloor, totalMinutes: nextFloorTotal },
           state.user.totalMinutes + actualMinutes,
+          projectedEffective,
+          baseline,
         )
         const stageAdvanced =
           !nextHouse.stage.isExpansion && nextHouse.level > prevHouse.level
@@ -428,6 +508,7 @@ function reducer(state: AppState, action: Action): AppState {
           lastStudyDate: today,
           totalSessions: projectedSessions,
           totalMinutes: state.user.totalMinutes + actualMinutes,
+          totalEffectiveMinutes: projectedEffective,
           houseEffortScore: (state.user.houseEffortScore ?? 0) + effortBonus,
           houseProgressFloor: nextFloor,
           houseFloorTotalMinutes: nextFloorTotal,
@@ -575,6 +656,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
           if (parsed.user.totalSessions === undefined) {
             parsed.user.totalSessions = (parsed.sessions ?? []).filter(s => s.completed).length
+          }
+          if (parsed.user.totalEffectiveMinutes === undefined) {
+            parsed.user.totalEffectiveMinutes = parsed.user.totalMinutes
           }
           if (parsed.user.houseEffortScore === undefined) {
             parsed.user.houseEffortScore = computeEffortScore(parsed.sessions ?? [])
