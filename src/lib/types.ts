@@ -3,7 +3,6 @@ export type Screen =
   | 'onboarding'
   | 'home'
   | 'plan'
-  | 'session'
   | 'progress'
   | 'settings'
   | 'recovery'
@@ -12,6 +11,8 @@ export type Screen =
   | 'update'
 
 export type SessionFeedback = 'easy' | 'comfortable' | 'difficult' | 'couldnt-finish'
+
+export type StudyReason = 'health' | 'energy' | 'emergency' | 'busy' | 'motivation' | 'custom'
 
 export type EnergyLevel = 'good' | 'okay' | 'low'
 
@@ -99,6 +100,7 @@ export interface StudySessionRecord {
   actualMinutes: number
   completed: boolean
   feedback: SessionFeedback | null
+  missedReason?: StudyReason | string
 }
 
 export interface TodayScheduleItem {
@@ -107,13 +109,4 @@ export interface TodayScheduleItem {
   targetMinutes: number
   watchedFrom: number
   status: 'in-progress' | 'upcoming' | 'completed'
-}
-
-export interface ActiveSession {
-  subjectId: string
-  lectureId: string
-  targetMinutes: number
-  startTime: number
-  pausedAt: number | null
-  totalPausedMs: number
 }

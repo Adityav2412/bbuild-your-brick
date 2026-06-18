@@ -1,6 +1,7 @@
 'use client'
 
-import { Bell, Play, ChevronRight, Home as HomeIcon, BookOpen } from 'lucide-react'
+import { useState } from 'react'
+import { Bell, Play, ChevronRight, Home as HomeIcon, BookOpen, AlertCircle, Sparkles } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import {
   getGreeting,
@@ -65,14 +66,42 @@ export default function HomeScreen() {
     ? Math.max(0, Math.ceil((new Date(user.examDate).getTime() - Date.now()) / 86400000))
     : null
 
-  const startSession = () => {
-    if (!todayFocus) return
+  // Modal states & handlers
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalStep, setModalStep] = useState<'options' | 'reasons' | 'custom'>('options')
+  const [customMinutes, setCustomMinutes] = useState<string>('')
+
+  const handleLogLess = (reason: string) => {
     dispatch({
-      type: 'START_SESSION',
-      subjectId: todayFocus.subjectId,
-      lectureId: todayFocus.lectureId,
-      targetMinutes: todayFocus.targetMinutes,
+      type: 'LOG_STUDY_DAY',
+      actualMinutes: 0,
+      reason,
     })
+    closeModal()
+  }
+
+  const handleLogBaseline = () => {
+    dispatch({
+      type: 'LOG_STUDY_DAY',
+      actualMinutes: 20,
+    })
+    closeModal()
+  }
+
+  const handleLogCustom = () => {
+    const mins = parseInt(customMinutes, 10)
+    if (isNaN(mins) || mins <= 0) return
+    dispatch({
+      type: 'LOG_STUDY_DAY',
+      actualMinutes: mins,
+    })
+    closeModal()
+  }
+
+  const closeModal = () => {
+    setIsModalOpen(false)
+    setModalStep('options')
+    setCustomMinutes('')
   }
 
   return (
@@ -272,17 +301,211 @@ export default function HomeScreen() {
           )}
         </div>
 
-        {/* Place today's brick button */}
+        {/* Place Today's Brick button */}
         {todayFocus && (
           <button
-            onClick={startSession}
+            onClick={() => {
+              setIsModalOpen(true)
+              setModalStep('options')
+            }}
             className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 active:scale-[0.98] transition-transform shadow-hearth tracking-tight"
           >
             <Play size={18} fill="currentColor" className="ml-0.5" />
-            Place today's brick
+            Place Today's Brick
           </button>
         )}
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/45 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="fixed inset-0" 
+            onClick={closeModal} 
+          />
+          <div className="relative w-full max-w-[430px] bg-card rounded-t-[32px] border-t border-border px-6 pt-5 pb-10 shadow-warm animate-in slide-in-from-bottom duration-300 ease-out z-10">
+            {/* Grab Handle */}
+            <div className="w-12 h-1.5 bg-border rounded-full mx-auto mb-6" />
+
+            {modalStep === 'options' && (
+              <div className="space-y-5">
+                <div className="text-center">
+                  <h3 className="text-xl font-extrabold text-foreground tracking-tight">
+                    How much did you study today?
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 font-medium">
+                    Log today's progress to place your brick.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setModalStep('reasons')}
+                    className="w-full h-14 bg-background hover:bg-muted/30 border border-border rounded-2xl font-semibold text-foreground flex items-center justify-between px-5 transition-all active:scale-[0.99]"
+                  >
+                    <span className="text-sm">Less than 20 minutes</span>
+                    <span className="text-muted-foreground text-xs font-normal">No brick awarded</span>
+                  </button>
+
+                  <button
+                    onClick={handleLogBaseline}
+                    className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold flex items-center justify-between px-5 transition-all active:scale-[0.99] shadow-warm"
+                  >
+                    <span className="text-sm">20 minutes</span>
+                    <span className="text-primary-foreground/85 text-xs font-semibold">Place 1 Brick</span>
+                  </button>
+
+                  <button
+                    onClick={() => setModalStep('custom')}
+                    className="w-full h-14 bg-background hover:bg-muted/30 border border-border rounded-2xl font-semibold text-foreground flex items-center justify-between px-5 transition-all active:scale-[0.99]"
+                  >
+                    <span className="text-sm">Custom amount</span>
+                    <span className="text-muted-foreground text-xs font-normal">Flexible minutes</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={closeModal}
+                  className="w-full h-11 text-muted-foreground hover:text-foreground text-sm font-semibold transition-colors mt-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {modalStep === 'reasons' && (
+              <div className="space-y-5">
+                <div className="text-center">
+                  <h3 className="text-xl font-extrabold text-foreground tracking-tight">
+                    Why did you study less than 20 minutes today?
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 font-medium">
+                    Your reason is noted in your study history. We'll ease tomorrow's rhythm.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Health issue', reason: 'Health issue', emoji: '🤒' },
+                    { label: 'Low energy', reason: 'Low energy', emoji: '🥱' },
+                    { label: 'Emergency', reason: 'Emergency', emoji: '🚨' },
+                    { label: 'Busy day', reason: 'Busy day', emoji: '📅' },
+                    { label: 'Low motivation', reason: 'Low motivation', emoji: '🧠' },
+                    { label: 'Custom', reason: 'Custom', emoji: '✏️' },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => handleLogLess(item.reason)}
+                      className="h-16 bg-background hover:bg-muted/30 border border-border rounded-2xl font-semibold text-sm text-foreground flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.97]"
+                    >
+                      <span className="text-lg leading-none">{item.emoji}</span>
+                      <span className="text-xs">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => setModalStep('options')}
+                    className="flex-1 h-12 bg-muted/40 hover:bg-muted/60 text-foreground rounded-2xl text-sm font-bold transition-all"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {modalStep === 'custom' && (
+              <div className="space-y-5">
+                <div className="text-center">
+                  <h3 className="text-xl font-extrabold text-foreground tracking-tight">
+                    Custom Study Time
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 font-medium">
+                    Enter total minutes studied today.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Number input and label */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      pattern="[0-9]*"
+                      inputMode="numeric"
+                      value={customMinutes}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (/^\d*$/.test(val)) {
+                          setCustomMinutes(val)
+                        }
+                      }}
+                      placeholder="0"
+                      className="flex-1 h-14 bg-background border border-border rounded-2xl text-center text-2xl font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all"
+                      autoFocus
+                    />
+                    <span className="text-base font-bold text-muted-foreground px-1">
+                      min
+                    </span>
+                  </div>
+
+                  {/* Quick add suggestions */}
+                  <div className="flex justify-between gap-2">
+                    {[15, 30, 45, 60].map((mins) => (
+                      <button
+                        key={mins}
+                        onClick={() => setCustomMinutes(String(mins))}
+                        className="flex-1 h-10 bg-muted/40 hover:bg-muted/65 text-foreground rounded-xl text-xs font-bold transition-all active:scale-[0.96]"
+                      >
+                        {mins}m
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setCustomMinutes('')}
+                      className="flex-1 h-10 bg-muted/40 hover:bg-muted/65 text-destructive rounded-xl text-xs font-bold transition-all active:scale-[0.96]"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {parseInt(customMinutes, 10) < 20 && customMinutes !== '' && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/25 rounded-2xl">
+                      <AlertCircle size={15} className="text-destructive shrink-0" />
+                      <p className="text-[11px] font-medium text-destructive leading-tight">
+                        Under 20 minutes does not award a brick or house progress.
+                      </p>
+                    </div>
+                  )}
+
+                  {parseInt(customMinutes, 10) >= 20 && (
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-primary/10 border border-primary/25 rounded-2xl">
+                      <Sparkles size={15} className="text-primary shrink-0" style={{ transform: 'rotate(15deg)' }} />
+                      <p className="text-[11px] font-semibold text-primary leading-tight">
+                        Nice! Placing 1 brick and growing your house.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setModalStep('options')}
+                    className="flex-1 h-13 bg-muted/40 hover:bg-muted/60 text-foreground rounded-2xl text-sm font-bold transition-all"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleLogCustom}
+                    disabled={!customMinutes || parseInt(customMinutes, 10) <= 0}
+                    className="flex-1 h-13 bg-primary text-primary-foreground disabled:opacity-40 disabled:pointer-events-none rounded-2xl text-sm font-extrabold transition-all shadow-warm"
+                  >
+                    Log Study Time
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

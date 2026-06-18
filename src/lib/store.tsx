@@ -7,7 +7,6 @@ import type {
   Subject,
   StudySessionRecord,
   TodayScheduleItem,
-  ActiveSession,
   SubjectColor,
   SubjectIcon,
   SessionFeedback,
@@ -15,7 +14,8 @@ import type {
 } from './types'
 import {
   buildTodaySchedule,
-  applyFeedbackToCapacity,
+  adjustCapacityFromStudyTime,
+  getReasonRecoveryMessage,
   isLongGap,
   daysAway,
   adjustCapacityForEnergy,
@@ -40,9 +40,6 @@ export interface AppState {
   subjects: Subject[]
   sessions: StudySessionRecord[]
   todaySchedule: TodayScheduleItem[]
-  activeSession: ActiveSession | null
-  /** Session just completed, awaiting feedback */
-  pendingFeedback: { sessionId: string } | null
   onboardingStep: number
   draft: {
     name: string
@@ -66,12 +63,7 @@ export type Action =
   | { type: 'DELETE_SUBJECT'; subjectId: string }
   | { type: 'ARCHIVE_SUBJECT'; subjectId: string }
   | { type: 'UNARCHIVE_SUBJECT'; subjectId: string }
-  | { type: 'START_SESSION'; subjectId: string; lectureId: string; targetMinutes: number }
-  | { type: 'PAUSE_SESSION' }
-  | { type: 'RESUME_SESSION' }
-  | { type: 'END_SESSION'; actualSeconds: number; completed: boolean }
-  | { type: 'SKIP_SESSION' }
-  | { type: 'SUBMIT_FEEDBACK'; sessionId: string; feedback: SessionFeedback }
+  | { type: 'LOG_STUDY_DAY'; actualMinutes: number; reason?: string }
   | { type: 'SET_ENERGY'; energy: EnergyLevel }
   | { type: 'EXIT_RECOVERY'; comfortableMinutes: number }
   | { type: 'UPDATE_USER'; updates: Partial<User> }
@@ -82,7 +74,8 @@ export type Action =
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function todayString(): string {
-  return new Date().toISOString().split('T')[0]
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
 function makeId(): string {
@@ -110,8 +103,6 @@ const initialState: AppState = {
   subjects: [],
   sessions: [],
   todaySchedule: [],
-  activeSession: null,
-  pendingFeedback: null,
   onboardingStep: 0,
   draft: {
     name: '',
@@ -237,235 +228,239 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, subjects, todaySchedule: schedule }
     }
 
-    case 'START_SESSION':
-      return {
-        ...state,
-        activeSession: {
-          subjectId: action.subjectId,
-          lectureId: action.lectureId,
-          targetMinutes: action.targetMinutes,
-          startTime: Date.now(),
-          pausedAt: null,
-          totalPausedMs: 0,
-        },
-        previousScreen: state.screen,
-        screen: 'session',
-      }
+    case 'LOG_STUDY_DAY': {
+      if (!state.user) return state
 
-    case 'PAUSE_SESSION':
-      if (!state.activeSession || state.activeSession.pausedAt !== null) return state
-      return {
-        ...state,
-        activeSession: { ...state.activeSession, pausedAt: Date.now() },
-      }
-
-    case 'RESUME_SESSION': {
-      if (!state.activeSession || state.activeSession.pausedAt === null) return state
-      const paused = Date.now() - state.activeSession.pausedAt
-      return {
-        ...state,
-        activeSession: {
-          ...state.activeSession,
-          pausedAt: null,
-          totalPausedMs: state.activeSession.totalPausedMs + paused,
-        },
-      }
-    }
-
-    case 'END_SESSION': {
-      if (!state.activeSession || !state.user) {
-        return { ...state, activeSession: null, screen: 'home' }
-      }
-      const { subjectId, lectureId, targetMinutes } = state.activeSession
-      const actualMinutes = Math.round(action.actualSeconds / 60)
-      const targetSeconds = Math.max(1, targetMinutes * 60)
-      const completionPct = action.actualSeconds / targetSeconds
-
-      // Session-completion logic — Brick never rewards a few seconds of study.
-      //   < 50%  → discarded entirely (no record, no progress, no brick)
-      //   50-89% → partial: save history + watched time, no brick, no feedback
-      //   ≥ 90%  → full credit: brick + feedback prompt + capacity eligible
-      const tier: 'discard' | 'partial' | 'complete' =
-        completionPct < 0.5 ? 'discard' : completionPct < 0.9 ? 'partial' : 'complete'
-
-      if (tier === 'discard') {
-        return { ...state, activeSession: null, screen: 'home' }
-      }
-
-      const sub = state.subjects.find((s) => s.id === subjectId)
-      const lec = sub?.lectures.find((l) => l.id === lectureId)
       const today = todayString()
-      const isBrick = tier === 'complete'
+      const actualMinutes = action.actualMinutes
+      const isBrick = actualMinutes >= 20
 
-      const updatedSubjects = state.subjects.map((s) => {
-        if (s.id !== subjectId) return s
-        return {
-          ...s,
-          lectures: s.lectures.map((l) => {
-            if (l.id !== lectureId) return l
-            const newWatched = l.watchedMinutes + actualMinutes
-            // Only mark a lecture "completed" once it has actually been fully
-            // watched. A partial session NEVER retires a lecture; the lecture
-            // simply tracks Watched / Remaining for the next session.
-            const isDone = newWatched >= l.durationMinutes
-            return {
-              ...l,
-              watchedMinutes: Math.min(newWatched, l.durationMinutes),
-              status: isDone ? ('completed' as const) : ('pending' as const),
-              completedDate: isDone ? today : l.completedDate,
-            }
-          }),
+      if (!isBrick) {
+        // Less than 20 minutes studied.
+        // No brick awarded, no house progress. Save reason in user history.
+        const rhythmResult = adjustCapacityFromStudyTime(
+          state.user.currentCapacity,
+          state.user.comfortableMinutes,
+          actualMinutes,
+          state.user.maxRhythm
+        )
+
+        const history = state.user.capacityHistory ?? []
+        const newHistory = [
+          ...history.filter((h) => h.date !== today),
+          { date: today, capacity: rhythmResult.newCapacity },
+        ].slice(-30)
+
+        const mentorNote = action.reason ? getReasonRecoveryMessage(action.reason) : rhythmResult.note
+
+        const updatedUser: User = {
+          ...state.user,
+          lastStudyDate: today,
+          currentCapacity: rhythmResult.newCapacity,
+          capacityHistory: newHistory,
+          lastMentorNote: mentorNote ?? state.user.lastMentorNote ?? null,
         }
-      })
 
-      // House effort: each brick = 1 visible brick, but longer sessions add a
-      // tiny internal bonus (up to +0.5 per session) so the house grows in a
-      // way that quietly reflects effort.
-      const effortBonus = isBrick ? 1 + Math.min(0.5, actualMinutes / 60) : 0
+        const sessionId = makeId()
+        const newRecord: StudySessionRecord = {
+          id: sessionId,
+          date: today,
+          subjectId: '',
+          lectureId: '',
+          subjectName: '',
+          lectureName: '',
+          plannedMinutes: state.user.currentCapacity,
+          actualMinutes,
+          completed: false,
+          feedback: null,
+          missedReason: action.reason,
+        }
 
-      // Update house progress floor — visible house never decreases.
-      const newSyll = getSyllabusProgress(updatedSubjects)
-      const newFraction = newSyll.totalMinutes > 0 ? newSyll.completedMinutes / newSyll.totalMinutes : 0
-      const prevFloor = state.user.houseProgressFloor ?? 0
-      const nextFloor = Math.max(prevFloor, newFraction)
-      const nextFloorTotal = nextFloor > prevFloor
-        ? newSyll.totalMinutes
-        : state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes
+        const schedule = buildTodaySchedule(
+          state.subjects,
+          effectiveCapacity(updatedUser),
+          [...state.sessions, newRecord],
+        )
 
-      // Energy honesty tracking — record today's completion against today's energy report.
-      const todayEnergyEntry =
-        state.user.todayEnergy && state.user.energyDate === today
-          ? [{ date: today, energy: state.user.todayEnergy, completionPct: Math.min(1, completionPct) }]
-          : []
-      const prevHistory = state.user.energyHistory ?? []
-      const nextEnergyHistory = [...prevHistory, ...todayEnergyEntry].slice(-30)
+        return {
+          ...state,
+          user: updatedUser,
+          sessions: [...state.sessions, newRecord],
+          todaySchedule: schedule,
+          screen: 'home',
+        }
+      } else {
+        // 20 minutes or more studied.
+        // 1 brick placed. Update subject/lecture watched minutes with rollover logic.
+        const minutesAppliedMap: Record<string, number> = {}
+        let remainingMinutes = actualMinutes
 
-      // Detect a house-stage advancement so the mentor can celebrate it once.
-      const prevHouse = getHouseState(
-        state.user.totalSessions,
-        state.user.houseEffortScore,
-        getSyllabusProgress(state.subjects),
-        { fraction: prevFloor, totalMinutes: state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes },
-      )
-      const projectedSessions = state.user.totalSessions + (isBrick ? 1 : 0)
-      const nextHouse = getHouseState(
-        projectedSessions,
-        (state.user.houseEffortScore ?? 0) + effortBonus,
-        newSyll,
-        { fraction: nextFloor, totalMinutes: nextFloorTotal },
-      )
-      const stageAdvanced =
-        !nextHouse.stage.isExpansion && nextHouse.level > prevHouse.level
-      const stageMessage = stageAdvanced
-        ? // STAGE_LINES live inside algorithm.ts via getMentorMessage; we
-          // mirror the same key here so the mentor surfaces it on next mount.
-          getMentorMessage({
-            totalSessions: projectedSessions,
-            recentFeedback: state.user.recentFeedback ?? [],
-            daysSinceLastStudy: 0,
-            houseStageKey: nextHouse.stage.key,
-            houseStageJustChanged: true,
-          })
-        : null
+        // Step 1: Apply to today's scheduled lectures first
+        for (const item of state.todaySchedule) {
+          if (remainingMinutes <= 0) break
+          const sub = state.subjects.find((s) => s.id === item.subjectId)
+          const lec = sub?.lectures.find((l) => l.id === item.lectureId)
+          if (!lec) continue
 
-      const updatedUser: User = {
-        ...state.user,
-        lastStudyDate: today,
-        totalSessions: projectedSessions,
-        totalMinutes: state.user.totalMinutes + actualMinutes,
-        houseEffortScore: (state.user.houseEffortScore ?? 0) + effortBonus,
-        houseProgressFloor: nextFloor,
-        houseFloorTotalMinutes: nextFloorTotal,
-        energyHistory: nextEnergyHistory,
-        lastMentorNote: stageMessage ?? state.user.lastMentorNote ?? null,
-      }
+          const lecRemaining = lec.durationMinutes - lec.watchedMinutes
+          if (lecRemaining <= 0) continue
 
-      const sessionId = makeId()
-      const newRecord: StudySessionRecord = {
-        id: sessionId,
-        date: today,
-        subjectId,
-        lectureId,
-        subjectName: sub?.name ?? '',
-        lectureName: lec?.name ?? '',
-        plannedMinutes: targetMinutes,
-        actualMinutes,
-        completed: isBrick,
-        feedback: null,
-      }
+          const minutesToApply = Math.min(remainingMinutes, lecRemaining)
+          minutesAppliedMap[lec.id] = (minutesAppliedMap[lec.id] || 0) + minutesToApply
+          remainingMinutes -= minutesToApply
+        }
 
-      const schedule = buildTodaySchedule(
-        updatedSubjects,
-        effectiveCapacity(updatedUser),
-        state.sessions,
-      )
+        // Step 2: Roll over to any other pending lectures of scheduled subjects if there are still minutes left
+        if (remainingMinutes > 0) {
+          for (const item of state.todaySchedule) {
+            if (remainingMinutes <= 0) break
+            const sub = state.subjects.find((s) => s.id === item.subjectId)
+            if (!sub) continue
 
-      return {
-        ...state,
-        activeSession: null,
-        user: updatedUser,
-        subjects: updatedSubjects,
-        sessions: [...state.sessions, newRecord],
-        todaySchedule: schedule,
-        pendingFeedback: isBrick ? { sessionId } : null,
-        screen: 'home',
-      }
-    }
+            for (const lec of sub.lectures) {
+              if (lec.status === 'completed') continue
+              const currentApplied = minutesAppliedMap[lec.id] || 0
+              const lecRemaining = lec.durationMinutes - (lec.watchedMinutes + currentApplied)
+              if (lecRemaining <= 0) continue
 
-    case 'SKIP_SESSION':
-      return { ...state, activeSession: null, screen: 'home' }
+              const minutesToApply = Math.min(remainingMinutes, lecRemaining)
+              minutesAppliedMap[lec.id] = currentApplied + minutesToApply
+              remainingMinutes -= minutesToApply
+              if (remainingMinutes <= 0) break
+            }
+          }
+        }
 
-    case 'SUBMIT_FEEDBACK': {
-      if (!state.user) return { ...state, pendingFeedback: null }
+        // Step 3: Map subjects and apply minutes
+        const updatedSubjects = state.subjects.map((s) => {
+          const hasAppliedMinutes = s.lectures.some((l) => (minutesAppliedMap[l.id] || 0) > 0)
+          if (!hasAppliedMinutes) return s
 
-      // 10%/week growth cap relative to the rhythm from ~7 days ago
-      const sevenDaysAgo = new Date()
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-      const history = state.user.capacityHistory ?? []
-      const past = [...history]
-        .filter((h) => new Date(h.date).getTime() <= sevenDaysAgo.getTime())
-        .pop()
-      const capacity7DaysAgo = past?.capacity ?? state.user.comfortableMinutes
+          return {
+            ...s,
+            lectures: s.lectures.map((l) => {
+              const applied = minutesAppliedMap[l.id] || 0
+              if (applied <= 0) return l
 
-      const result = applyFeedbackToCapacity(
-        state.user.currentCapacity,
-        state.user.comfortableMinutes,
-        state.user.recentFeedback,
-        action.feedback,
-        capacity7DaysAgo,
-        state.user.maxRhythm,
-        state.user.confidenceScore ?? 0,
-      )
+              const newWatched = l.watchedMinutes + applied
+              const isDone = newWatched >= l.durationMinutes
+              return {
+                ...l,
+                watchedMinutes: Math.min(newWatched, l.durationMinutes),
+                status: isDone ? ('completed' as const) : l.status,
+                completedDate: isDone ? today : l.completedDate,
+              }
+            }),
+          }
+        })
 
-      const today = todayString()
-      const newHistory = [
-        ...history.filter((h) => h.date !== today),
-        { date: today, capacity: result.newCapacity },
-      ].slice(-30)
+        // House effort score calculation
+        const effortBonus = 1 + Math.min(0.5, actualMinutes / 60)
 
-      const updatedUser: User = {
-        ...state.user,
-        currentCapacity: result.newCapacity,
-        recentFeedback: result.updatedFeedback,
-        confidenceScore: result.confidenceScore,
-        capacityHistory: newHistory,
-        progressionPaused: result.progressionPaused,
-        lastMentorNote: result.note,
-      }
-      const updatedSessions = state.sessions.map((s) =>
-        s.id === action.sessionId ? { ...s, feedback: action.feedback } : s
-      )
-      const schedule = buildTodaySchedule(
-        state.subjects,
-        effectiveCapacity(updatedUser),
-        updatedSessions,
-      )
-      return {
-        ...state,
-        user: updatedUser,
-        sessions: updatedSessions,
-        todaySchedule: schedule,
-        pendingFeedback: null,
+        // Update house progress floor
+        const newSyll = getSyllabusProgress(updatedSubjects)
+        const newFraction = newSyll.totalMinutes > 0 ? newSyll.completedMinutes / newSyll.totalMinutes : 0
+        const prevFloor = state.user.houseProgressFloor ?? 0
+        const nextFloor = Math.max(prevFloor, newFraction)
+        const nextFloorTotal = nextFloor > prevFloor
+          ? newSyll.totalMinutes
+          : state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes
+
+        // Energy honesty history update
+        const todayEnergyEntry =
+          state.user.todayEnergy && state.user.energyDate === today
+            ? [{ date: today, energy: state.user.todayEnergy, completionPct: 1 }]
+            : []
+        const prevHistory = state.user.energyHistory ?? []
+        const nextEnergyHistory = [...prevHistory, ...todayEnergyEntry].slice(-30)
+
+        // Rhythm adjustment
+        const rhythmResult = adjustCapacityFromStudyTime(
+          state.user.currentCapacity,
+          state.user.comfortableMinutes,
+          actualMinutes,
+          state.user.maxRhythm
+        )
+
+        const history = state.user.capacityHistory ?? []
+        const newHistory = [
+          ...history.filter((h) => h.date !== today),
+          { date: today, capacity: rhythmResult.newCapacity },
+        ].slice(-30)
+
+        // House stage advancement
+        const prevHouse = getHouseState(
+          state.user.totalSessions,
+          state.user.houseEffortScore,
+          getSyllabusProgress(state.subjects),
+          { fraction: prevFloor, totalMinutes: state.user.houseFloorTotalMinutes ?? newSyll.totalMinutes },
+        )
+        const projectedSessions = state.user.totalSessions + 1
+        const nextHouse = getHouseState(
+          projectedSessions,
+          (state.user.houseEffortScore ?? 0) + effortBonus,
+          newSyll,
+          { fraction: nextFloor, totalMinutes: nextFloorTotal },
+        )
+        const stageAdvanced =
+          !nextHouse.stage.isExpansion && nextHouse.level > prevHouse.level
+        const stageMessage = stageAdvanced
+          ? getMentorMessage({
+              totalSessions: projectedSessions,
+              recentFeedback: state.user.recentFeedback ?? [],
+              daysSinceLastStudy: 0,
+              houseStageKey: nextHouse.stage.key,
+              houseStageJustChanged: true,
+            })
+          : null
+
+        const updatedUser: User = {
+          ...state.user,
+          lastStudyDate: today,
+          totalSessions: projectedSessions,
+          totalMinutes: state.user.totalMinutes + actualMinutes,
+          houseEffortScore: (state.user.houseEffortScore ?? 0) + effortBonus,
+          houseProgressFloor: nextFloor,
+          houseFloorTotalMinutes: nextFloorTotal,
+          energyHistory: nextEnergyHistory,
+          currentCapacity: rhythmResult.newCapacity,
+          capacityHistory: newHistory,
+          lastMentorNote: stageMessage ?? rhythmResult.note ?? state.user.lastMentorNote ?? null,
+        }
+
+        const sessionId = makeId()
+        // Record which primary subject/lecture we studied, if any was scheduled
+        const primaryItem = state.todaySchedule[0] ?? null
+        const primarySub = primaryItem ? state.subjects.find((s) => s.id === primaryItem.subjectId) : null
+        const primaryLec = primaryItem ? primarySub?.lectures.find((l) => l.id === primaryItem.lectureId) : null
+
+        const newRecord: StudySessionRecord = {
+          id: sessionId,
+          date: today,
+          subjectId: primaryItem?.subjectId ?? '',
+          lectureId: primaryItem?.lectureId ?? '',
+          subjectName: primarySub?.name ?? '',
+          lectureName: primaryLec?.name ?? '',
+          plannedMinutes: state.user.currentCapacity,
+          actualMinutes,
+          completed: true,
+          feedback: null,
+        }
+
+        const schedule = buildTodaySchedule(
+          updatedSubjects,
+          effectiveCapacity(updatedUser),
+          [...state.sessions, newRecord],
+        )
+
+        return {
+          ...state,
+          user: updatedUser,
+          subjects: updatedSubjects,
+          sessions: [...state.sessions, newRecord],
+          todaySchedule: schedule,
+          screen: 'home',
+        }
       }
     }
 
@@ -713,19 +708,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             parsed.user.energyDate = null
           }
 
-          // Restore an in-flight session (paused) so a refresh / device sleep
-          // never destroys live progress. We force pausedAt so the timer is
-          // frozen at the last persisted moment — the user must press Resume.
-          let restoredSession: ActiveSession | null = null
           let restoredScreen: Screen = startScreen
-          if (parsed.activeSession) {
-            const a = parsed.activeSession
-            restoredSession = {
-              ...a,
-              pausedAt: a.pausedAt ?? Date.now(),
-            }
-            restoredScreen = 'session'
-          }
 
           // If we just credited 15 June and today is 15 June, the day's
           // brick is already placed — show an empty schedule so the home
@@ -743,12 +726,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               )
           // App-update gate: if the stored app version differs from the
           // current build, surface the Update screen first so the user can
-          // restore from a local backup before continuing. Active sessions
-          // take priority and are never interrupted.
+          // restore from a local backup before continuing.
           let finalScreen: Screen = restoredScreen
           try {
             const stored = localStorage.getItem(APP_VERSION_KEY)
-            if (stored !== APP_VERSION && restoredScreen !== 'session') {
+            if (stored !== APP_VERSION) {
               finalScreen = 'update'
             }
           } catch {}
@@ -758,13 +740,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             state: {
               ...parsed,
               todaySchedule: schedule,
-              activeSession: restoredSession,
-              pendingFeedback: null,
               screen: finalScreen,
             },
           })
         } else {
-          dispatch({ type: 'HYDRATE', state: { ...parsed, activeSession: null } })
+          dispatch({ type: 'HYDRATE', state: parsed })
           // Non-onboarded user: nothing to protect, accept current version.
           try { localStorage.setItem(APP_VERSION_KEY, APP_VERSION) } catch {}
         }
@@ -789,17 +769,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return
     try {
-      // Persist the active session in a frozen (paused) snapshot so a refresh,
-      // device sleep, or accidental tab close can resume exactly where the
-      // student left off. The timer never auto-starts after restore.
-      const frozenSession: ActiveSession | null = state.activeSession
-        ? {
-            ...state.activeSession,
-            pausedAt: state.activeSession.pausedAt ?? Date.now(),
-          }
-        : null
-      const toStore: AppState = { ...state, activeSession: frozenSession }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     } catch (e) {
       console.error('[Brick] Persist error:', e)
     }

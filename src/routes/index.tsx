@@ -1,12 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { StoreProvider, useStore } from '@/lib/store'
 import BottomNav from '@/components/BottomNav'
-import FeedbackModal from '@/components/FeedbackModal'
 import WelcomeScreen from '@/components/screens/WelcomeScreen'
 import OnboardingScreen from '@/components/screens/OnboardingScreen'
 import HomeScreen from '@/components/screens/HomeScreen'
 import PlanScreen from '@/components/screens/PlanScreen'
-import StudySessionScreen from '@/components/screens/StudySessionScreen'
 import ProgressScreen from '@/components/screens/ProgressScreen'
 import SettingsScreen from '@/components/screens/SettingsScreen'
 import WelcomeBackScreen from '@/components/screens/WelcomeBackScreen'
@@ -43,14 +41,12 @@ function AppRouter() {
       {screen === 'onboarding' && <OnboardingScreen />}
       {screen === 'home' && <HomeScreen />}
       {screen === 'plan' && <PlanScreen />}
-      {screen === 'session' && <StudySessionScreen />}
       {screen === 'progress' && <ProgressScreen />}
       {screen === 'settings' && <SettingsScreen />}
       {screen === 'welcome-back' && <WelcomeBackScreen />}
       {screen === 'recovery' && <RecoveryScreen />}
       {screen === 'update' && <UpdateScreen />}
       <BottomNav />
-      <FeedbackModal />
     </div>
   )
 }

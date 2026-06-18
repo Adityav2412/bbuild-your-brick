@@ -188,19 +188,10 @@ export default function PlanScreen() {
                 if (!sub || !lec) return null
                 const isFirst = idx === 0
                 return (
-                  <button
+                  <div
                     key={`${item.subjectId}-${item.lectureId}`}
-                    onClick={() =>
-                      dispatch({
-                        type: 'START_SESSION',
-                        subjectId: item.subjectId,
-                        lectureId: item.lectureId,
-                        targetMinutes: item.targetMinutes,
-                      })
-                    }
                     className={cn(
-                      'w-full bg-card rounded-3xl border p-4 text-left transition-all active:scale-[0.98]',
-                      isFirst ? 'border-primary/30 shadow-md shadow-primary/5' : 'border-border',
+                      'w-full bg-card rounded-3xl border p-4 text-left border-border shadow-warm'
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -221,11 +212,10 @@ export default function PlanScreen() {
                           <span className="text-xs text-muted-foreground">
                             {isFirst ? "Today's brick" : 'Next up'}
                           </span>
-                          <ChevronRight size={14} className="text-muted-foreground" />
                         </div>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>

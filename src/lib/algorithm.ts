@@ -60,74 +60,58 @@ export const RHYTHM_CEILING = 120;
 /** Absolute hard floor. The rhythm never drops below this. */
 export const RHYTHM_FLOOR = 10;
 
-export function applyFeedbackToCapacity(
+export interface RhythmResult {
+  newCapacity: number;
+  note: string | null;
+}
+
+export function adjustCapacityFromStudyTime(
   currentCapacity: number,
   comfortableMinutes: number,
-  recentFeedback: SessionFeedback[],
-  newFeedback: SessionFeedback,
-  capacity7DaysAgo: number | null = null,
+  actualMinutes: number,
   maxRhythm: number = RHYTHM_CEILING,
-  confidenceScore: number = 0,
-): CapacityResult {
-  // Hard global ceiling — never exceed 120 minutes regardless of user setting.
+): RhythmResult {
   maxRhythm = Math.min(maxRhythm, RHYTHM_CEILING);
-  const updated = [...recentFeedback, newFeedback].slice(-8);
-  const last2 = updated.slice(-2);
-
   const floor = Math.max(RHYTHM_FLOOR, Math.round(comfortableMinutes * 0.5));
-  const baseFor10pct = capacity7DaysAgo ?? comfortableMinutes;
-  // The hard ceiling is the smaller of (10%/week growth cap, user's chosen max, 120)
-  const weeklyCeiling = Math.min(maxRhythm, RHYTHM_CEILING, Math.round(baseFor10pct * 1.1));
-
   let newCapacity = currentCapacity;
   let note: string | null = null;
-  let nextConfidence = confidenceScore + CONFIDENCE_DELTA[newFeedback];
 
-  // 2 difficult in a row → pause progression (hold and cool down)
-  if (last2.length === 2 && last2.every((f) => f === "difficult")) {
-    return {
-      newCapacity: currentCapacity,
-      updatedFeedback: updated,
-      confidenceScore: nextConfidence,
-      progressionPaused: true,
-      note: "Holding steady. Let's give today the same shape as yesterday.",
-    };
-  }
-
-  // Cross +5 → grow rhythm gently
-  if (nextConfidence >= 5) {
-    const target = Math.min(weeklyCeiling, currentCapacity + 2);
-    if (target > currentCapacity) {
-      newCapacity = target;
+  if (actualMinutes > currentCapacity) {
+    newCapacity = Math.min(maxRhythm, currentCapacity + 2);
+    if (newCapacity > currentCapacity) {
       note = "Your rhythm grew by a few minutes. Quietly.";
     }
-    nextConfidence = 0;
-  }
-  // Cross -3 → ease rhythm gently
-  else if (nextConfidence <= -3) {
-    const target = Math.max(floor, currentCapacity - 2);
-    if (target < currentCapacity) {
-      newCapacity = target;
-      note =
-        newFeedback === "couldnt-finish"
-          ? "Easing things down a touch. Tomorrow we begin again."
-          : "Softening today\u2019s rhythm. Steadiness matters more than speed.";
+  } else if (actualMinutes < currentCapacity) {
+    newCapacity = Math.max(floor, currentCapacity - 2);
+    if (newCapacity < currentCapacity) {
+      note = "Easing things down a touch. Tomorrow we begin again.";
     }
-    nextConfidence = 0;
   }
-
-  // Defensive clamps
-  if (newCapacity > weeklyCeiling) newCapacity = weeklyCeiling;
-  if (newCapacity > maxRhythm) newCapacity = maxRhythm;
-  if (newCapacity < floor) newCapacity = floor;
 
   return {
     newCapacity,
-    updatedFeedback: updated,
-    confidenceScore: nextConfidence,
-    progressionPaused: false,
     note,
   };
+}
+
+export function getReasonRecoveryMessage(reason: string): string {
+  const normalized = reason.toLowerCase().trim();
+  if (normalized.includes("health")) {
+    return "Take your time recovering. Your house waits for you.";
+  }
+  if (normalized.includes("energy")) {
+    return "Energy flows and ebbs. Today we rest, tomorrow we build.";
+  }
+  if (normalized.includes("emergency")) {
+    return "Life happens. Take care of what matters most first.";
+  }
+  if (normalized.includes("busy")) {
+    return "A full day. Tomorrow we'll find a quiet window.";
+  }
+  if (normalized.includes("motivation")) {
+    return "Motivation is a visitor; habit is the builder. We'll start very small next time.";
+  }
+  return "Every day has its own story. Let's begin fresh tomorrow.";
 }
 
 // ─── Energy adjustment (today-only) ──────────────────────────────────────────
